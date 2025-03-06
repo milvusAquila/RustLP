@@ -1,13 +1,10 @@
-use iced::{
-    widget::{slider, text, toggler},
-    Theme,
-};
+use iced::{widget::toggler, Theme};
 use iced_aw::menu;
 
-use crate::{control::Control, App, Message, FONT_SIZE};
+use crate::{App, Message, FONT_SIZE};
 
-impl Control {
-    pub fn view_settings(&self, debug_layout: bool) -> menu::Menu<Message, Theme, iced::Renderer> {
+impl App {
+    pub fn view_settings(&self) -> menu::Menu<Message, Theme, iced::Renderer> {
         let menu_tpl = |items| {
             menu::Menu::new(items)
                 .max_width(11.0 * FONT_SIZE)
@@ -27,7 +24,7 @@ impl Control {
         // let spacing_header = text("Spacing").size(self.font_size);
         // let spacing_slider = slider(0.0..=20.0, self.spacing, Message::SpacingChanged);
 
-        let debug_layout = toggler(debug_layout)
+        let debug_layout = toggler(self.debug_layout)
             .label("Debug layout")
             .on_toggle(|_| Message::DebugToggle);
         // .size(self.font_size)

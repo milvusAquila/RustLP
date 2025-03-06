@@ -1,17 +1,12 @@
-use iced::{widget::{image, stack, text}, window, Element};
+use iced::{widget::{image, stack, text}, Element};
 
-use crate::Message;
+use crate::{App, Message};
 
-#[derive(Debug)]
-pub struct Display {}
-impl Display {
-    pub fn new() -> Self {
-        Display {}
-    }
-    pub fn view(&self, id: window::Id) -> Element<Message> {
+impl App {
+    pub fn view_display(&self) -> Element<Message> {
         stack!(
-            image("cross.jpg"),
-            text("HELLO WORLD"),
+        image("cross.jpg"),
+            text("WORLD HELLO"),
         ).into()
     }
 }
