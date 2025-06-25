@@ -6,16 +6,17 @@ use rusqlite::Connection;
 mod control;
 mod db;
 mod display;
-mod settings;
+// mod settings;
 mod style;
 
 const FONT_SIZE: f32 = 16.0;
 
 fn main() -> iced::Result {
-    iced::daemon(App::title, App::update, App::view)
+    iced::daemon(App::new, App::update, App::view)
+        .title(App::title)
         .subscription(App::subscription)
         .theme(App::theme)
-        .run_with(App::new)
+        .run()
 }
 
 #[derive(Debug)]
@@ -24,8 +25,7 @@ struct App {
     control: window::Id,
     _display: window::Id,
     db: Connection,
-    sort: db::Sort,
-    sort_options: iced::widget::combo_box::State<db::Sort>,
+    sort: Option<db::Sort>,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ impl App {
             ..Default::default()
         });
         let (display_id, display) = window::open(window::Settings {
-            decorations: false,
+            fullscreen: true,
             level: window::Level::AlwaysOnTop,
             exit_on_close_request: false,
             ..Default::default()
@@ -54,8 +54,7 @@ impl App {
                 control: control_id,
                 _display: display_id,
                 db: db::connect_db().expect("ERROR: Failed to connect database"),
-                sort: db::Sort::default(),
-                sort_options: iced::widget::combo_box::State::new(db::Sort::ALL.to_vec()),
+                sort: Some(db::Sort::default()),
             },
             Task::batch([
                 control.map(Message::WindowOpened),
@@ -65,7 +64,7 @@ impl App {
     }
 
     fn title(&self, _id: window::Id) -> String {
-        String::from("Rust-LP")
+        String::from("RustLP")
     }
 
     fn subscription(&self) -> iced::Subscription<Message> {
@@ -97,7 +96,7 @@ impl App {
                 }
             }
             Message::SortChanged(sort) => {
-                self.sort = sort;
+                self.sort = Some(sort);
                 Task::none()
             }
         }

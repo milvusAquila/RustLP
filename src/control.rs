@@ -1,8 +1,8 @@
 use iced::{
-    widget::{button, column, combo_box, row, scrollable, text, Column},
+    widget::{button, column, pick_list, row, scrollable, text, Column},
     Element, Length,
 };
-use iced_aw::menu::{self, Item};
+// use iced_aw::menu::{self, Item};
 use rusqlite::Result;
 
 use crate::{db::Sort, Message};
@@ -11,7 +11,7 @@ use crate::{style, App};
 impl App {
     pub fn view_control(&self) -> Element<Message> {
         // Header
-        let menu_tpl = |items| {
+/*         let menu_tpl = |items| {
             menu::Menu::new(items)
                 .max_width(180.0)
                 .offset(5.0)
@@ -39,18 +39,14 @@ impl App {
             {
                 self.view_settings() // see in src/settings.rs
             })
-        );
+        ); */
 
         // Main
         let index = column![
             text("Library"),
-            combo_box(
-                &self.sort_options,
-                "Select a sorting method ...",
-                Some(&self.sort),
-                Message::SortChanged
-            )
-            .width(Length::FillPortion(20)),
+            pick_list(Sort::ALL, self.sort, Message::SortChanged)
+                .style(style::themed_pick_list)
+                .width(Length::FillPortion(20)),
             scrollable(self.load_index().expect("ERROR: Failed to load index"))
                 .width(Length::FillPortion(20))
                 .height(Length::Fill),
@@ -61,11 +57,11 @@ impl App {
         let main = row![index, preview, direct, service].spacing(10).padding(5);
 
         // Final
-        Element::from(column![header, main,])
+        Element::from(column![/* header, */ main,])
     }
     fn load_index(&self) -> Result<Column<'_, Message>> {
         let mut index = column![];
-        let mut query = match self.sort {
+        let mut query = match self.sort.unwrap() {
             Sort::Title => self.db.prepare("SELECT title FROM songs ORDER BY title;")?,
             // Sort::Songbook => self.db.prepare("SELECT book FROM songs ORDER BY title;")?,
             _ => self.db.prepare("SELECT title FROM songs ORDER BY title;")?,
