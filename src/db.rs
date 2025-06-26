@@ -33,12 +33,13 @@ pub fn connect_db() -> Result<Connection> {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Sort {
     #[default]
+    Default,
     Title,
     Songbook,
     Author,
 }
 impl Sort {
-    pub const ALL: [Sort; 3] = [Sort::Title, Sort::Songbook, Sort::Author];
+    pub const ALL: [Sort; 4] = [Sort::Default, Sort::Title, Sort::Songbook, Sort::Author];
 }
 impl std::fmt::Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

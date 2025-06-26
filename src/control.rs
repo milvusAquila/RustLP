@@ -1,48 +1,16 @@
 use iced::{
-    widget::{button, column, pick_list, row, scrollable, text, Column},
     Element, Length,
+    widget::{Column, button, column, pick_list, row, scrollable, text},
 };
-// use iced_aw::menu::{self, Item};
 use rusqlite::Result;
 
-use crate::{db::Sort, Message};
-use crate::{style, App};
+use crate::{App, style};
+use crate::{Message, db::Sort};
 
 impl App {
-    pub fn view_control(&self) -> Element<Message> {
-        // Header
-/*         let menu_tpl = |items| {
-            menu::Menu::new(items)
-                .max_width(180.0)
-                .offset(5.0)
-                .spacing(5.0)
-        };
-
-        let open = button(text("Open")).style(style::header_button);
-
-        let editor = button(text("Edit"))
-            // .on_press(Message::OpenEditor)
-            .style(style::header_button);
-
-        #[rustfmt::skip]
-        let header = iced_aw::menu_bar!(
-            (button(text("File"))
-                .style(style::header_button),
-            {
-                menu_tpl(iced_aw::menu_items!(
-                    (open)
-                    (editor)
-                )).width(Length::Shrink)
-            })
-            (button(text("Settings"))
-                .style(style::header_button),
-            {
-                self.view_settings() // see in src/settings.rs
-            })
-        ); */
-
-        // Main
+    pub fn view_control(&self) -> Element<'_, Message> {
         let index = column![
+            button(text("Settings")).on_press(Message::OpenSettings),
             text("Library"),
             pick_list(Sort::ALL, self.sort, Message::SortChanged)
                 .style(style::themed_pick_list)
@@ -56,22 +24,79 @@ impl App {
         let service = text("TODO").width(Length::FillPortion(20));
         let main = row![index, preview, direct, service].spacing(10).padding(5);
 
-        // Final
-        Element::from(column![/* header, */ main,])
+        Element::from(main)
     }
     fn load_index(&self) -> Result<Column<'_, Message>> {
+        // Query database
         let mut index = column![];
-        let mut query = match self.sort.unwrap() {
-            Sort::Title => self.db.prepare("SELECT title FROM songs ORDER BY title;")?,
-            // Sort::Songbook => self.db.prepare("SELECT book FROM songs ORDER BY title;")?,
-            _ => self.db.prepare("SELECT title FROM songs ORDER BY title;")?,
-        };
-        let mut titles = query.query([])?;
-        while let Ok(Some(i)) = titles.next() {
-            index = index.push(
-                button(text(format!("{}", i.get::<_, String>(0)?))).style(style::header_button),
-            );
+        let mut query = self.db.prepare(match self.sort.unwrap() {
+            Sort::Default => {
+                "SELECT b.name, s.number, s.title
+                FROM songs s
+                LEFT JOIN books b
+                ON s.book = b.id
+                GROUP BY s.id
+                ORDER BY CASE WHEN b.name IS NULL THEN s.title ELSE b.name END,
+                         CASE WHEN b.name IS NULL THEN '' ELSE s.number END;
+                "
+            }
+            Sort::Title => "SELECT title FROM songs ORDER BY title;",
+            Sort::Songbook => {
+                "SELECT b.name, s.number, s.title
+                FROM songs s
+                JOIN books b
+                ON s.book = b.id
+                ORDER BY CASE WHEN b.name IS NULL THEN 1 ELSE 0 END, b.name;"
+            }
+            Sort::Author => {
+                "SELECT a.name,s.title FROM authors_songs asng
+                JOIN authors a ON a.id = asng.author_id
+                JOIN songs s ON s.id = asng.song_id
+                ORDER BY a.name,s.title;"
+            }
+        })?;
+        let mut iterator = query.query([])?;
+        //  Create widgets
+        while let Ok(Some(i)) = iterator.next() {
+            if let Some(sort) = self.sort {
+                index = index.push(
+                    button(text(match sort {
+                        Sort::Default => format!(
+                            "{}{}",
+                            if let Ok(book) = i.get::<_, String>(0) {
+                                format!("{} {:03}  ", book, i.get::<_, u16>(1).unwrap_or(0))
+                            } else {
+                                String::new()
+                            },
+                            i.get::<_, String>(2)? // Title
+                        ),
+                        Sort::Title => i.get::<_, String>(0)?,
+                        Sort::Songbook => {
+                            format!(
+                                "{} {:03}  {}",
+                                i.get::<_, String>(0)?,
+                                i.get::<_, u16>(1).unwrap_or(0),
+                                i.get::<_, String>(2)?
+                            )
+                        }
+                        Sort::Author => format!("{} ({})", i.get::<_, String>(0)?, i.get::<_, String>(1)?),
+                    }))
+                    .style(style::header_button),
+                )
+            };
         }
         Ok(index)
     }
 }
+/*
+FULL:
+                "SELECT b.name, s.number, s.title, GROUP_CONCAT(a.name, ', ') AS authors
+                FROM songs s
+                JOIN authors_songs asng ON s.id = asng.song_id
+                JOIN authors a ON asng.author_id = a.id
+                LEFT JOIN books b
+                ON s.book = b.id
+                GROUP BY s.id
+                ORDER BY s.title;
+                "
+*/
