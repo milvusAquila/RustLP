@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 iced = { git = "https://github.com/iced-rs/iced", features = ["image"] }
-rusqlite = "0.33.0"
+rusqlite = "0.36.0"

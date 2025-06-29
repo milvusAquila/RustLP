@@ -19,7 +19,7 @@ impl Default for Settings {
         Self {
             window: None,
             font_size: 16.0,
-            spacing: 10.0,
+            spacing: 5.0,
             debug_layout: false,
             dark_theme: true,
         }
@@ -30,7 +30,7 @@ impl App {
     pub fn view_settings(&self) -> Element<'_, Message> {
         let set = &self.set;
         let theme: iced::widget::Toggler<Message> = toggler(set.dark_theme)
-            .label("Theme")
+            .label("Dark theme")
             .on_toggle(|_| Message::ThemeSelected)
             .size(set.font_size)
             .text_size(set.font_size);

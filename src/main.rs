@@ -3,11 +3,14 @@
 use iced::{Element, Task, Theme, widget::container, window};
 use rusqlite::Connection;
 
+use crate::db::Book;
+
 mod control;
 mod db;
 mod display;
 mod settings;
 mod style;
+mod widget;
 
 fn main() -> iced::Result {
     iced::daemon(App::new, App::update, App::view)
@@ -24,6 +27,9 @@ struct App {
     set: settings::Settings,
     db: Connection,
     sort: Option<db::Sort>,
+    preview: Option<u16>,
+    direct: Option<u16>,
+    books: Vec<Book>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +37,8 @@ enum Message {
     WindowOpened(window::Id),
     Close(window::Id),
     SortChanged(db::Sort),
+    OpenSong(u16, control::Content),
+    PreviewToDirect,
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -49,13 +57,18 @@ impl App {
             exit_on_close_request: false,
             ..Default::default()
         });
+        let db = db::connect_db().expect("ERROR: Failed to connect database");
+        let books = db::load_songbooks(&db).expect("ERROR: Failed to load books");
         (
             Self {
                 control: control_id,
                 display: display_id,
                 set: settings::Settings::default(),
-                db: db::connect_db().expect("ERROR: Failed to connect database"),
+                db: db,
                 sort: Some(db::Sort::default()),
+                preview: None,
+                direct: None,
+                books,
             },
             Task::batch([
                 control.map(Message::WindowOpened),
@@ -73,6 +86,7 @@ impl App {
         iced::Subscription::batch([
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
+                Key::Named(key::Named::Enter) => Some(Message::PreviewToDirect),
                 _ => None,
             }),
             window::close_events().map(Message::Close),
@@ -91,6 +105,17 @@ impl App {
             }
             Message::SortChanged(sort) => {
                 self.sort = Some(sort);
+                Task::none()
+            }
+            Message::OpenSong(id, content) => {
+                match content {
+                    control::Content::Preview => self.preview = Some(id),
+                    control::Content::Direct => self.direct = self.preview,
+                }
+                Task::none()
+            }
+            Message::PreviewToDirect => {
+                self.direct = self.preview;
                 Task::none()
             }
             // Settings
