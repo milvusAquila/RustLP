@@ -10,13 +10,6 @@ pub fn text<'a>(
         .align_y(alignment::Vertical::Center)
 }
 
-pub fn button<'a>(
-    txt: impl widget::text::IntoFragment<'a>,
-    app: &App,
-) -> widget::Button<'a, Message, Theme, iced::Renderer> {
-    widget::button(text(txt, app))
-}
-
 pub fn tbutton<'a>(
     txt: impl widget::text::IntoFragment<'a>,
     app: &App,

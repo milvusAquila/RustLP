@@ -1,6 +1,6 @@
 use iced::{
     Alignment, Element, Font, Length, Theme,
-    widget::{Column, Container, column, container, pick_list, row, scrollable},
+    widget::{Column, Container, button, column, container, pick_list, row, scrollable},
 };
 use rusqlite::Result;
 
@@ -8,7 +8,7 @@ use crate::{
     App, Message,
     db::{Song, Sort},
     style,
-    widget::{button, tbutton, text},
+    widget::{tbutton, text},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -17,10 +17,14 @@ pub enum Content {
     Direct,
 }
 
+fn icon<'a>(codepoint: char) -> Element<'a, Message> {
+    const ICON_FONT: Font = Font::with_name("icons");
+    iced::widget::text(codepoint).font(ICON_FONT).into()
+}
+
 impl App {
     pub fn view_control(&self) -> Element<'_, Message> {
         let index = column![
-            button("Settings", self).on_press(Message::OpenSettings),
             text("Library", self),
             pick_list(Sort::ALL, self.sort, Message::SortChanged)
                 .text_size(self.set.font_size)
@@ -36,13 +40,22 @@ impl App {
             .load_song(Content::Preview)
             .unwrap_or(container(text("ERROR: Failed to load preview", self)))
             .height(Length::Fill)
-            .width(Length::FillPortion(30));
+            .width(Length::FillPortion(35));
         let direct = self
             .load_song(Content::Direct)
             .unwrap_or(container(text("ERROR: Failed to load direct", self)))
             .height(Length::Fill)
-            .width(Length::FillPortion(30));
-        let service = text("TODO", self).width(Length::FillPortion(20));
+            .width(Length::FillPortion(35));
+        let service = column![
+            row![
+                // New 0e801
+                // File 0e802
+                // Save 0e803
+                button(icon('\u{0e800}')).on_press(Message::OpenSettings)
+            ],
+            text("TODO", self)
+        ]
+        .width(Length::FillPortion(10));
         let main = row![index, preview, direct, service]
             .spacing(self.set.spacing)
             .padding(5);
@@ -139,7 +152,7 @@ impl App {
             Content::Direct => self.direct,
         };
         if content.is_none() {
-            return Ok(container(text("No song selected", self)));
+            return Ok(container(text("No song selected", self).center()));
         }
         let mut query = self
             .db

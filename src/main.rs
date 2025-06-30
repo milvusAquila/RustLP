@@ -17,6 +17,7 @@ fn main() -> iced::Result {
         .title(App::title)
         .subscription(App::subscription)
         .theme(App::theme)
+        .font(include_bytes!("../fonts/icons.ttf").as_slice())
         .run()
 }
 
@@ -101,7 +102,15 @@ impl App {
             },
             Message::Close(id) => {
                 if id == self.control {
-                    Task::batch([window::close(self.display), iced::exit()])
+                    Task::batch([
+                        if let Some(settings) = self.set.window {
+                            window::close(settings)
+                        } else {
+                            Task::none()
+                        },
+                        window::close(self.display),
+                        iced::exit(),
+                    ])
                 } else {
                     Task::none()
                 }
