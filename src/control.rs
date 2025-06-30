@@ -8,7 +8,7 @@ use crate::{
     App, Message,
     db::{Song, Sort},
     style,
-    widget::{button, sbutton, text},
+    widget::{button, tbutton, text},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -29,17 +29,17 @@ impl App {
                 .padding(self.set.spacing),
             scrollable(self.load_index().expect("ERROR: Failed to load index"))
                 .width(Length::FillPortion(20))
-                .height(Length::Fill)
-                .spacing(self.set.spacing),
-        ];
+                .height(Length::Fill),
+        ]
+        .spacing(self.set.spacing);
         let preview = self
             .load_song(Content::Preview)
-            .expect("ERROR: Failed to load preview")
+            .unwrap_or(container(text("ERROR: Failed to load preview", self)))
             .height(Length::Fill)
             .width(Length::FillPortion(30));
         let direct = self
             .load_song(Content::Direct)
-            .expect("ERROR: Failed to load direct")
+            .unwrap_or(container(text("ERROR: Failed to load direct", self)))
             .height(Length::Fill)
             .width(Length::FillPortion(30));
         let service = text("TODO", self).width(Length::FillPortion(20));
@@ -64,7 +64,14 @@ impl App {
                          CASE WHEN b.name IS NULL THEN '' ELSE s.number END;
                 "
             }
-            Sort::Title => "SELECT id, title FROM songs ORDER BY title;",
+            Sort::Title => {
+                "SELECT s.id, s.title, GROUP_CONCAT(a.name, ', ') AS authors
+                FROM songs s
+                JOIN authors_songs asng ON s.id = asng.song_id
+                JOIN authors a ON asng.author_id = a.id
+                GROUP BY s.id
+                ORDER BY s.title;"
+            }
             Sort::Songbook => {
                 "SELECT s.id, b.name, s.number, s.title
                 FROM songs s
@@ -85,7 +92,7 @@ impl App {
         while let Ok(Some(i)) = iterator.next() {
             if let Some(sort) = self.sort {
                 index = index.push(
-                    sbutton(
+                    tbutton(
                         match sort {
                             Sort::Default => format!(
                                 "{}{}",
@@ -94,15 +101,19 @@ impl App {
                                 } else {
                                     String::new()
                                 },
-                                i.get::<_, String>(3)? // Title
+                                i.get::<_, String>(3)?, // Title
                             ),
-                            Sort::Title => i.get::<_, String>(1)?,
+                            Sort::Title => format!(
+                                "{} ({})",
+                                i.get::<_, String>(1)?, // Title
+                                i.get::<_, String>(2)?, // Authors
+                            ),
                             Sort::Songbook => {
                                 format!(
                                     "{} {:03}  {}",
                                     i.get::<_, String>(1)?,
                                     i.get::<_, u16>(2).unwrap_or(0),
-                                    i.get::<_, String>(3)?
+                                    i.get::<_, String>(3)?,
                                 )
                             }
                             Sort::Author => {
@@ -161,15 +172,3 @@ impl App {
         ]))
     }
 }
-/*
-FULL:
-                "SELECT b.name, s.number, s.title, GROUP_CONCAT(a.name, ', ') AS authors
-                FROM songs s
-                JOIN authors_songs asng ON s.id = asng.song_id
-                JOIN authors a ON asng.author_id = a.id
-                LEFT JOIN books b
-                ON s.book = b.id
-                GROUP BY s.id
-                ORDER BY s.title;
-                "
-*/

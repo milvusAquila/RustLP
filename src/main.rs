@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use iced::{Element, Task, Theme, widget::container, window};
+use iced::{Element, Size, Task, Theme, widget::container, window};
 use rusqlite::Connection;
 
 use crate::db::Book;
@@ -125,6 +125,10 @@ impl App {
             Message::OpenSettings => {
                 let (settings_id, settings) = window::open(window::Settings {
                     maximized: false,
+                    size: Size {
+                        width: 300.0,
+                        height: 400.0,
+                    },
                     ..Default::default()
                 });
                 self.set.window = Some(settings_id);
