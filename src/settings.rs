@@ -39,7 +39,7 @@ impl App {
         let font_size_slidder = slider(10.0..=50.0, set.font_size, Message::TextFontChanged);
 
         let spacing_header = text("Spacing").size(set.font_size);
-        let spacing_slider = slider(0.0..=20.0, set.spacing, Message::SpacingChanged);
+        let spacing_slider = slider(1.0..=20.0, set.spacing, Message::SpacingChanged);
 
         let debug_layout = toggler(set.debug_layout)
             .label("Debug layout")

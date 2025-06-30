@@ -95,7 +95,10 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::WindowOpened(id) => window::maximize(id, true),
+            Message::WindowOpened(id) => match self.set.window {
+                Some(settings) if settings == id => Task::none(),
+                _ => window::maximize(id, true),
+            },
             Message::Close(id) => {
                 if id == self.control {
                     Task::batch([window::close(self.display), iced::exit()])
