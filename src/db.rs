@@ -29,6 +29,7 @@ pub fn connect_db() -> Result<Connection> {
     )?;
     Ok(db)
 }
+
 pub fn load_songbooks(db: &Connection) -> Result<Vec<Book>> {
     let mut query = db.prepare("SELECT * FROM books;")?;
     let mut iterator = query.query([])?;
@@ -42,14 +43,41 @@ pub fn load_songbooks(db: &Connection) -> Result<Vec<Book>> {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Sort {
     #[default]
-    Default,
-    Title,
-    Songbook,
-    Author,
+    Default = 0,
+    Title = 1,
+    Songbook = 2,
+    Author = 3,
 }
+
 impl Sort {
     pub const ALL: [Sort; 4] = [Sort::Default, Sort::Title, Sort::Songbook, Sort::Author];
+    pub const QUERYS: [&str; 4] = [
+        "SELECT s.id, b.name, s.number, s.title
+            FROM songs s
+            LEFT JOIN books b
+            ON s.book = b.id
+            GROUP BY s.id
+            ORDER BY CASE WHEN b.name IS NULL THEN s.title ELSE b.name END,
+                     CASE WHEN b.name IS NULL THEN '' ELSE s.number END;",
+        "SELECT s.id, s.title, GROUP_CONCAT(a.name, ', ') AS authors
+            FROM songs s
+            JOIN authors_songs asng ON s.id = asng.song_id
+            JOIN authors a ON asng.author_id = a.id
+            GROUP BY s.id
+            ORDER BY s.title;",
+        "SELECT s.id, b.name, s.number, s.title
+            FROM songs s
+            JOIN books b
+            ON s.book = b.id
+            ORDER BY CASE WHEN b.name IS NULL THEN 1 ELSE 0 END, b.name;",
+        "SELECT s.id, a.name, s.title
+            FROM authors_songs asng
+            JOIN authors a ON a.id = asng.author_id
+            JOIN songs s ON s.id = asng.song_id
+            ORDER BY a.name,s.title;",
+    ];
 }
+
 impl std::fmt::Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)

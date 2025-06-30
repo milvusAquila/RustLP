@@ -66,40 +66,7 @@ impl App {
     fn load_index(&self) -> Result<Column<'_, Message>> {
         // Query database
         let mut index = column![];
-        let mut query = self.db.prepare(match self.sort.unwrap() {
-            Sort::Default => {
-                "SELECT s.id, b.name, s.number, s.title
-                FROM songs s
-                LEFT JOIN books b
-                ON s.book = b.id
-                GROUP BY s.id
-                ORDER BY CASE WHEN b.name IS NULL THEN s.title ELSE b.name END,
-                         CASE WHEN b.name IS NULL THEN '' ELSE s.number END;
-                "
-            }
-            Sort::Title => {
-                "SELECT s.id, s.title, GROUP_CONCAT(a.name, ', ') AS authors
-                FROM songs s
-                JOIN authors_songs asng ON s.id = asng.song_id
-                JOIN authors a ON asng.author_id = a.id
-                GROUP BY s.id
-                ORDER BY s.title;"
-            }
-            Sort::Songbook => {
-                "SELECT s.id, b.name, s.number, s.title
-                FROM songs s
-                JOIN books b
-                ON s.book = b.id
-                ORDER BY CASE WHEN b.name IS NULL THEN 1 ELSE 0 END, b.name;"
-            }
-            Sort::Author => {
-                "SELECT s.id, a.name, s.title
-                FROM authors_songs asng
-                JOIN authors a ON a.id = asng.author_id
-                JOIN songs s ON s.id = asng.song_id
-                ORDER BY a.name,s.title;"
-            }
-        })?;
+        let mut query = self.db.prepare(Sort::QUERYS[self.sort.unwrap() as usize])?;
         let mut iterator = query.query([])?;
         //  Create widgets
         while let Ok(Some(i)) = iterator.next() {
@@ -124,14 +91,16 @@ impl App {
                             Sort::Songbook => {
                                 format!(
                                     "{} {:03}  {}",
-                                    i.get::<_, String>(1)?,
-                                    i.get::<_, u16>(2).unwrap_or(0),
-                                    i.get::<_, String>(3)?,
+                                    i.get::<_, String>(1)?, // Songbook
+                                    i.get::<_, u16>(2).unwrap_or(0), // Number
+                                    i.get::<_, String>(3)?, // Title
                                 )
                             }
-                            Sort::Author => {
-                                format!("{} ({})", i.get::<_, String>(1)?, i.get::<_, String>(2)?)
-                            }
+                            Sort::Author => format!(
+                                "{} ({})",
+                                i.get::<_, String>(1)?, // Author
+                                i.get::<_, String>(2)?, // Title
+                            ),
                         },
                         self,
                     )
