@@ -6,7 +6,7 @@ use iced::{
     widget::{image, text},
 };
 
-use crate::{widget::BOLD, App, Message};
+use crate::{App, Message, widget::BOLD};
 
 impl App {
     pub fn view_display(&self) -> Element<'_, Message> {
@@ -115,20 +115,10 @@ where
         };
         // Stroke
         renderer.with_translation(Vector::new(2.0, 2.0), |renderer| {
-            renderer.fill_text(
-                lyrics.clone(),
-                bounds.center(),
-                Color::BLACK,
-                *viewport,
-            )
+            renderer.fill_text(lyrics.clone(), bounds.center(), Color::BLACK, *viewport)
         });
         // Lyrics
-        renderer.fill_text(
-            lyrics,
-            bounds.center(),
-            Color::WHITE,
-            *viewport,
-        );
+        renderer.fill_text(lyrics, bounds.center(), Color::WHITE, *viewport);
     }
 }
 

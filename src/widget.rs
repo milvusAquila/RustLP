@@ -1,6 +1,8 @@
 use crate::{App, Message};
 use iced::{
-    alignment::Vertical, widget::{button, text, Button}, Font, Theme
+    Font, Theme,
+    alignment::Vertical,
+    widget::{Button, button, text},
 };
 
 pub fn ttext<'a>(
