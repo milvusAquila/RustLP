@@ -1,3 +1,4 @@
+use quick_xml::{Reader, events::Event};
 use rusqlite::{Connection, Result, Row};
 use std::env;
 
@@ -91,10 +92,32 @@ impl std::fmt::Display for Sort {
 }
 
 #[derive(Debug, Clone)]
+pub struct Book {
+    pub id: u16,
+    pub name: String,
+}
+
+impl std::fmt::Display for Book {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.name)
+    }
+}
+
+impl TryFrom<&Row<'_>> for Book {
+    type Error = rusqlite::Error;
+    fn try_from(value: &Row<'_>) -> std::result::Result<Self, Self::Error> {
+        Ok(Book {
+            id: value.get(0)?,
+            name: value.get(1)?,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Song {
     pub id: u16,
     pub title: String,
-    pub lyrics: String,
+    pub lyrics: Lyrics,
     pub book: Option<u16>,
     pub number: Option<u16>,
 }
@@ -129,7 +152,7 @@ impl Song {
 
 impl std::fmt::Display for Song {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}\n{}", self.title, self.lyrics)
+        writeln!(f, "{}\n{}", self.title, self.lyrics.get())
     }
 }
 
@@ -139,31 +162,115 @@ impl TryFrom<&Row<'_>> for Song {
         Ok(Song {
             id: value.get(0)?,
             title: value.get(1)?,
-            lyrics: value.get(2)?,
+            lyrics: value.get::<_, String>(2)?.try_into().expect("XXXXXXXXX"),
             book: value.get::<_, Option<u16>>(3)?,
             number: value.get::<_, Option<u16>>(4)?,
         })
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Book {
-    pub id: u16,
-    pub name: String,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verse {
+    Intro,
+    Verse,
+    PreChorus,
+    Chorus,
+    Bridge,
+    End,
+    Other,
 }
 
-impl std::fmt::Display for Book {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.name)
+#[derive(Debug, Clone)]
+pub struct Lyrics(Vec<(Verse, u8, String)>);
+
+impl Lyrics {
+    pub fn get(&self) -> String {
+        // TODO: Add parameter to choose verse
+        self.0[0].2.clone()
     }
 }
 
-impl TryFrom<&Row<'_>> for Book {
-    type Error = rusqlite::Error;
-    fn try_from(value: &Row<'_>) -> std::result::Result<Self, Self::Error> {
-        Ok(Book {
-            id: value.get(0)?,
-            name: value.get(1)?,
-        })
+impl TryFrom<String> for Lyrics {
+    type Error = quick_xml::Error;
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        let mut lyrics = Lyrics(vec![]);
+        let (mut verse, mut nb, mut txt) = (Verse::Other, 0, String::new());
+        let mut reader = Reader::from_reader(value.as_bytes());
+        let mut buf = vec![];
+        reader.config_mut().trim_text(true);
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Err(e) => eprintln!(
+                    "ERROR: Unable to read XML: position: {}, error: {}",
+                    reader.error_position(),
+                    e
+                ),
+                Ok(Event::Eof) => break,
+                Ok(Event::Start(element)) if element.name().as_ref() == b"verse" => {
+                    for attr_result in element.attributes() {
+                        let decoder = reader.decoder();
+                        let a = attr_result.unwrap();
+                        match decoder
+                            .decode(a.key.local_name().as_ref())?
+                            .to_string()
+                            .as_str()
+                        {
+                            "type" => {
+                                match a.decode_and_unescape_value(decoder)?.to_string().as_str() {
+                                    "i" => verse = Verse::Intro,
+                                    "v" => verse = Verse::Verse,
+                                    "p" => verse = Verse::PreChorus,
+                                    "c" => verse = Verse::Chorus,
+                                    "b" => verse = Verse::Bridge,
+                                    "e" => verse = Verse::End,
+                                    "o" => verse = Verse::Other,
+                                    _ => panic!(),
+                                }
+                            }
+                            "label" => {
+                                nb = a
+                                    .decode_and_unescape_value(decoder)?
+                                    .parse::<u8>()
+                                    .expect("ERROR: Non valid number")
+                            }
+                            _ => panic!(),
+                        }
+                    }
+                }
+                Ok(Event::CData(raw)) => {
+                    txt = raw.decode()?.to_string();
+                }
+                _ => (),
+            }
+            if nb != 0 && txt != String::new() {
+                lyrics.0.push((verse, nb, txt));
+                nb = 0;
+                txt = String::new();
+            }
+            buf.clear();
+        }
+        Ok(lyrics)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test() {
+        let db = connect_db().unwrap();
+        let books = load_songbooks(&db).unwrap();
+        let mut query = db.prepare(Sort::QUERYS[0]).unwrap();
+        let mut iterator = query.query([]).unwrap();
+        let mut j = 0;
+        while let Ok(Some(i)) = iterator.next() {
+            let id = i.get(0).unwrap();
+            let song = load_song(&db, id).unwrap();
+            if j % 100 == 1 {
+                println!("{}", song.title(&books));
+                println!("{:#?}\n", song.lyrics);
+            }
+            j += 1;
+        }
     }
 }

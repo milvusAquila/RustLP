@@ -31,19 +31,17 @@ impl App {
                 .style(style::theme_pick_list)
                 .width(Length::FillPortion(20))
                 .padding(self.set.spacing),
-            scrollable(self.load_index().expect("ERROR: Failed to load index"))
+            scrollable(self.view_index().expect("ERROR: Failed to load index"))
                 .width(Length::FillPortion(20))
                 .height(Length::Fill),
         ]
         .spacing(self.set.spacing);
         let preview = self
             .view_song(Content::Preview)
-            .unwrap_or(container(ttext("ERROR: Failed to load preview", self)))
             .height(Length::Fill)
             .width(Length::FillPortion(35));
         let direct = self
             .view_song(Content::Direct)
-            .unwrap_or(container(ttext("ERROR: Failed to load direct", self)))
             .height(Length::Fill)
             .width(Length::FillPortion(35));
         let service = column![
@@ -63,7 +61,7 @@ impl App {
             .into()
     }
 
-    fn load_index(&self) -> Result<Column<'_, Message>> {
+    fn view_index(&self) -> Result<Column<'_, Message>> {
         // Query database
         let mut index = column![];
         let mut query = self.db.prepare(Sort::QUERYS[self.sort.unwrap() as usize])?;
@@ -115,24 +113,24 @@ impl App {
         Ok(index)
     }
 
-    fn view_song(&self, content: Content) -> Result<Container<'_, Message, Theme>> {
+    fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
         let song = match content {
             Content::Preview => &self.preview,
             Content::Direct => &self.direct,
         };
         if let Some(song) = song {
-            Ok(container(column![
+            container(column![
                 ttext(song.title(&self.books), self)
                     .font(BOLD)
                     .align_x(Alignment::Center)
                     .width(Length::Fill),
-                ttext(&song.lyrics, self)
+                ttext(song.lyrics.clone().get(), self)
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_y(Alignment::Start),
-            ]))
+            ])
         } else {
-            Ok(container(ttext("No song selected", self).center()))
+            container(ttext("No song selected", self).center())
         }
     }
 }

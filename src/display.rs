@@ -12,7 +12,7 @@ impl App {
     pub fn view_display(&self) -> Element<'_, Message> {
         if let Some(song) = &self.direct {
             let title = song.title(&self.books);
-            Display::new(&song.lyrics, &title, "cross.jpg").into()
+            Display::new(&song.lyrics.get(), &title, "cross.jpg").into()
         } else {
             image("cross.jpg").into()
         }
