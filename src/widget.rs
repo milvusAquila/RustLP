@@ -1,18 +1,25 @@
 use crate::{App, Message};
-use iced::{Theme, alignment, widget};
+use iced::{
+    alignment::Vertical, widget::{button, text, Button}, Font, Theme
+};
 
-pub fn text<'a>(
-    text: impl widget::text::IntoFragment<'a>,
+pub fn ttext<'a>(
+    text: impl text::IntoFragment<'a>,
     app: &App,
-) -> widget::Text<'a, Theme, iced::Renderer> {
-    widget::text(text)
+) -> iced::widget::Text<'a, Theme, iced::Renderer> {
+    iced::widget::text(text)
         .size(app.set.font_size)
-        .align_y(alignment::Vertical::Center)
+        .align_y(Vertical::Center)
 }
 
 pub fn tbutton<'a>(
-    txt: impl widget::text::IntoFragment<'a>,
+    txt: impl text::IntoFragment<'a>,
     app: &App,
-) -> widget::Button<'a, Message, Theme, iced::Renderer> {
-    widget::button(text(txt, app)).style(widget::button::text)
+) -> Button<'a, Message, Theme, iced::Renderer> {
+    button(ttext(txt, app)).style(button::text)
 }
+
+pub const BOLD: Font = Font {
+    weight: iced::font::Weight::Bold,
+    ..Font::DEFAULT
+};

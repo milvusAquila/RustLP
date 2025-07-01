@@ -6,9 +6,9 @@ use rusqlite::Result;
 
 use crate::{
     App, Message,
-    db::{Song, Sort},
+    db::Sort,
     style,
-    widget::{tbutton, text},
+    widget::{BOLD, tbutton, ttext},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -25,7 +25,7 @@ fn icon<'a>(codepoint: char) -> Element<'a, Message> {
 impl App {
     pub fn view_control(&self) -> Element<'_, Message> {
         let index = column![
-            text("Library", self),
+            ttext("Library", self),
             pick_list(Sort::ALL, self.sort, Message::SortChanged)
                 .text_size(self.set.font_size)
                 .style(style::theme_pick_list)
@@ -37,13 +37,13 @@ impl App {
         ]
         .spacing(self.set.spacing);
         let preview = self
-            .load_song(Content::Preview)
-            .unwrap_or(container(text("ERROR: Failed to load preview", self)))
+            .view_song(Content::Preview)
+            .unwrap_or(container(ttext("ERROR: Failed to load preview", self)))
             .height(Length::Fill)
             .width(Length::FillPortion(35));
         let direct = self
-            .load_song(Content::Direct)
-            .unwrap_or(container(text("ERROR: Failed to load direct", self)))
+            .view_song(Content::Direct)
+            .unwrap_or(container(ttext("ERROR: Failed to load direct", self)))
             .height(Length::Fill)
             .width(Length::FillPortion(35));
         let service = column![
@@ -53,14 +53,14 @@ impl App {
                 // Save 0e803
                 button(icon('\u{0e800}')).on_press(Message::OpenSettings)
             ],
-            text("TODO", self)
+            ttext("TODO", self)
         ]
         .width(Length::FillPortion(10));
-        let main = row![index, preview, direct, service]
-            .spacing(self.set.spacing)
-            .padding(5);
 
-        Element::from(main)
+        row![index, preview, direct, service]
+            .spacing(self.set.spacing)
+            .padding(5)
+            .into()
     }
 
     fn load_index(&self) -> Result<Column<'_, Message>> {
@@ -115,42 +115,24 @@ impl App {
         Ok(index)
     }
 
-    fn load_song(&self, content: Content) -> Result<Container<'_, Message, Theme>> {
-        let content = match content {
-            Content::Preview => self.preview,
-            Content::Direct => self.direct,
+    fn view_song(&self, content: Content) -> Result<Container<'_, Message, Theme>> {
+        let song = match content {
+            Content::Preview => &self.preview,
+            Content::Direct => &self.direct,
         };
-        if content.is_none() {
-            return Ok(container(text("No song selected", self).center()));
+        if let Some(song) = song {
+            Ok(container(column![
+                ttext(song.title(&self.books), self)
+                    .font(BOLD)
+                    .align_x(Alignment::Center)
+                    .width(Length::Fill),
+                ttext(&song.lyrics, self)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_y(Alignment::Start),
+            ]))
+        } else {
+            Ok(container(ttext("No song selected", self).center()))
         }
-        let mut query = self
-            .db
-            .prepare("SELECT id, title, lyrics, book, number FROM songs WHERE id = ?;")?;
-        let song: Song = query.query_one([content], |row| row.try_into())?;
-
-        let mut title = String::new();
-        if song.book.is_some() {
-            title += &song.book(&self.books);
-            if song.number.is_some() {
-                title += &format!(" {:03}  ", song.number.unwrap());
-            } else {
-                title += "  ";
-            }
-        }
-        title += &song.title;
-
-        Ok(container(column![
-            text(title, self)
-                .font(Font {
-                    weight: iced::font::Weight::Bold,
-                    ..Default::default()
-                })
-                .align_x(Alignment::Center)
-                .width(Length::Fill),
-            text(song.lyrics, self)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .align_y(Alignment::Start),
-        ]))
     }
 }

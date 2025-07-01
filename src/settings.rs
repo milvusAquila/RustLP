@@ -1,10 +1,10 @@
 use iced::{
     Element,
-    widget::{column, slider, text, toggler},
+    widget::{column, slider, toggler},
     window,
 };
 
-use crate::{App, Message};
+use crate::{App, Message, widget::ttext};
 
 #[derive(Debug, Clone)]
 pub struct Settings {
@@ -35,10 +35,10 @@ impl App {
             .size(set.font_size)
             .text_size(set.font_size);
 
-        let font_size_header = text("Text size").size(set.font_size);
+        let font_size_header = ttext("Text size", self);
         let font_size_slidder = slider(10.0..=30.0, set.font_size, Message::TextFontChanged);
 
-        let spacing_header = text("Spacing").size(set.font_size);
+        let spacing_header = ttext("Spacing", self);
         let spacing_slider = slider(1.0..=15.0, set.spacing, Message::SpacingChanged);
 
         let debug_layout = toggler(set.debug_layout)
@@ -53,7 +53,7 @@ impl App {
             font_size_slidder,
             spacing_header,
             spacing_slider,
-            debug_layout
+            debug_layout,
         ];
         Element::from(settings)
     }

@@ -3,7 +3,7 @@
 use iced::{Element, Size, Task, Theme, widget::container, window};
 use rusqlite::Connection;
 
-use crate::db::Book;
+use crate::db::{Book, Song, load_song};
 
 mod control;
 mod db;
@@ -28,8 +28,8 @@ struct App {
     set: settings::Settings,
     db: Connection,
     sort: Option<db::Sort>,
-    preview: Option<u16>,
-    direct: Option<u16>,
+    preview: Option<Song>,
+    direct: Option<Song>,
     books: Vec<Book>,
 }
 
@@ -121,13 +121,13 @@ impl App {
             }
             Message::OpenSong(id, content) => {
                 match content {
-                    control::Content::Preview => self.preview = Some(id),
-                    control::Content::Direct => self.direct = self.preview,
+                    control::Content::Preview => self.preview = load_song(&self.db, id).ok(),
+                    control::Content::Direct => self.direct = self.preview.clone(),
                 }
                 Task::none()
             }
             Message::PreviewToDirect => {
-                self.direct = self.preview;
+                self.direct = self.preview.clone();
                 Task::none()
             }
             // Settings

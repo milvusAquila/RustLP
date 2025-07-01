@@ -40,6 +40,12 @@ pub fn load_songbooks(db: &Connection) -> Result<Vec<Book>> {
     Ok(books)
 }
 
+pub fn load_song(db: &Connection, id: u16) -> Result<Song> {
+    let mut query =
+        db.prepare("SELECT id, title, lyrics, book, number FROM songs WHERE id = ?;")?;
+    query.query_one([id], |row| row.try_into())
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Sort {
     #[default]
@@ -94,16 +100,30 @@ pub struct Song {
 }
 
 impl Song {
-    pub fn book(&self, list: &Vec<Book>) -> String {
+    pub fn book(&self, books: &Vec<Book>) -> String {
         if self.book.is_none() {
             return String::new();
         }
         let id = self.book.unwrap();
-        let book = list
+        let book = books
             .iter()
             .find(|book| book.id == id)
             .expect("ERROR: failed to find book");
         book.clone().name
+    }
+
+    pub fn title(&self, books: &Vec<Book>) -> String {
+        let mut title = String::new();
+        if self.book.is_some() {
+            title += &self.book(books);
+            if self.number.is_some() {
+                title += &format!(" {:03}  ", self.number.unwrap());
+            } else {
+                title += "  ";
+            }
+        }
+        title += &self.title;
+        title
     }
 }
 
