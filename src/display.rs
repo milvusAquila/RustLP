@@ -1,6 +1,11 @@
 use iced::{
     Color, Element, Font, Length, Size, Theme, Vector,
-    advanced::{Layout, Text, Widget, layout, renderer, widget::Tree},
+    advanced::{
+        Layout, Text, Widget,
+        image::{Bytes, Handle},
+        layout, renderer,
+        widget::Tree,
+    },
     alignment::Vertical,
     mouse,
     widget::{image, text},
@@ -8,13 +13,15 @@ use iced::{
 
 use crate::{App, Message, widget::BOLD};
 
+const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross.jpg");
+
 impl App {
     pub fn view_display(&self) -> Element<'_, Message> {
         if let Some(song) = &self.direct {
             let title = song.title(&self.books);
-            Display::new(&song.lyrics.get(), &title, "cross.jpg").into()
+            Display::new(&song.lyrics.get(), &title).into()
         } else {
-            image("cross.jpg").into()
+            image(Handle::from_bytes(Bytes::from_static(DEFAULT_IMAGE))).into()
         }
     }
 }
@@ -23,16 +30,16 @@ struct Display {
     title: String,
     lyrics: String,
     font_size: f32,
-    image: String,
+    image: Handle,
 }
 
 impl Display {
-    fn new(lyrics: &str, title: &str, image: &str) -> Self {
+    fn new(lyrics: &str, title: &str) -> Self {
         Self {
             title: title.to_string(),
             lyrics: lyrics.to_string(),
             font_size: 40.0,
-            image: image.to_string(),
+            image: Handle::from_bytes(Bytes::from_static(DEFAULT_IMAGE)),
         }
     }
 }
@@ -74,7 +81,7 @@ where
             renderer,
             layout,
             viewport,
-            &image::Handle::from_path(&self.image),
+            &self.image,
             iced::ContentFit::Fill,
             image::FilterMethod::Linear,
             iced::Rotation::default(),
@@ -114,7 +121,10 @@ where
             wrapping: text::Wrapping::default(),
         };
         // Stroke
-        renderer.with_translation(Vector::new(2.0, 2.0), |renderer| {
+        renderer.with_translation(Vector::new(-0.5, -0.5), |renderer| {
+            renderer.fill_text(lyrics.clone(), bounds.center(), Color::BLACK, *viewport)
+        });
+        renderer.with_translation(Vector::new(1.0, 1.0), |renderer| {
             renderer.fill_text(lyrics.clone(), bounds.center(), Color::BLACK, *viewport)
         });
         // Lyrics
