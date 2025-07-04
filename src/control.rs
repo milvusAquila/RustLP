@@ -119,15 +119,22 @@ impl App {
             Content::Direct => &self.direct,
         };
         if let Some(song) = song {
+            let mut lyrics = column![];
+            for verse in song.lyrics.clone().into_iter() {
+                lyrics = lyrics.push(
+                    tbutton(verse.1, self)
+                        .on_press(Message::ChangeVerse(content, verse.0))
+                        .width(Length::Fill),
+                );
+            }
             container(column![
                 ttext(song.title(&self.books), self)
                     .font(BOLD)
                     .align_x(Alignment::Center)
                     .width(Length::Fill),
-                ttext(song.lyrics.clone().get(), self)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_y(Alignment::Start),
+                scrollable(lyrics).width(Length::Fill).height(Length::Fill),
+                self.view_display(),
+                // TODO: Differentiate preview and direct, preserve texte size and ratio
             ])
         } else {
             container(ttext("No song selected", self).center())

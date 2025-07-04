@@ -3,7 +3,10 @@
 use iced::{Element, Size, Task, Theme, widget::container, window};
 use rusqlite::Connection;
 
-use crate::db::{Book, Song, load_song};
+use crate::{
+    control::Content,
+    db::{Book, Song, Verse, load_song},
+};
 
 mod control;
 mod db;
@@ -40,6 +43,7 @@ enum Message {
     SortChanged(db::Sort),
     OpenSong(u16, control::Content),
     PreviewToDirect,
+    ChangeVerse(Content, Verse),
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -69,7 +73,7 @@ impl App {
                 sort: Some(db::Sort::default()),
                 preview: None,
                 direct: None,
-                books,
+                books: books,
             },
             Task::batch([
                 control.map(Message::WindowOpened),
@@ -121,13 +125,20 @@ impl App {
             }
             Message::OpenSong(id, content) => {
                 match content {
-                    control::Content::Preview => self.preview = load_song(&self.db, id).ok(),
-                    control::Content::Direct => self.direct = self.preview.clone(),
+                    Content::Preview => self.preview = load_song(&self.db, id).ok(),
+                    Content::Direct => self.direct = self.preview.clone(),
                 }
                 Task::none()
             }
             Message::PreviewToDirect => {
                 self.direct = self.preview.clone();
+                Task::none()
+            }
+            Message::ChangeVerse(content, verse) => {
+                match content {
+                    Content::Direct => Song::set_current(&mut self.direct, verse),
+                    Content::Preview => (),
+                }
                 Task::none()
             }
             // Settings

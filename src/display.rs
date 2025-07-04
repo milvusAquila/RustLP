@@ -19,7 +19,12 @@ impl App {
     pub fn view_display(&self) -> Element<'_, Message> {
         if let Some(song) = &self.direct {
             let title = song.title(&self.books);
-            Display::new(&song.lyrics.get(), &title).into()
+            if let Some(current) = song.current {
+                Display::new(&song.lyrics.get_verse(current).as_str(), &title)
+            } else {
+                Display::new("", &title)
+            }
+            .into()
         } else {
             image(Handle::from_bytes(Bytes::from_static(DEFAULT_IMAGE))).into()
         }
@@ -103,8 +108,8 @@ where
                 wrapping: text::Wrapping::default(),
             },
             iced::Point {
-                x: 0.0,
-                y: bounds.y + bounds.height,
+                x: layout.position().x,
+                y: layout.position().y + bounds.height,
             },
             Color::WHITE,
             *viewport,
