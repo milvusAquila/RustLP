@@ -11,18 +11,25 @@ use iced::{
     widget::{image, text},
 };
 
-use crate::{App, Message, widget::BOLD};
+use crate::{App, Message, control::Content, widget::BOLD};
 
 const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross.jpg");
 
 impl App {
-    pub fn view_display(&self) -> Element<'_, Message> {
-        if let Some(song) = &self.direct {
+    pub fn view_display(&self, content: Content) -> Element<'_, Message> {
+        if let Some(song) = match content {
+            Content::Direct => &self.direct,
+            Content::Preview => &self.preview,
+        } {
             let title = song.title(&self.books);
             if let Some(current) = song.current {
-                Display::new(&song.lyrics.get_verse(current).as_str(), &title)
+                Display::new(
+                    &song.lyrics.get_verse(current).as_str(),
+                    &title,
+                    self.resolution,
+                )
             } else {
-                Display::new("", &title)
+                Display::new("", &title, self.resolution)
             }
             .into()
         } else {
@@ -32,6 +39,7 @@ impl App {
 }
 
 struct Display {
+    resolution: Size,
     title: String,
     lyrics: String,
     font_size: f32,
@@ -39,8 +47,9 @@ struct Display {
 }
 
 impl Display {
-    fn new(lyrics: &str, title: &str) -> Self {
+    fn new(lyrics: &str, title: &str, resolution: Size) -> Self {
         Self {
+            resolution: resolution,
             title: title.to_string(),
             lyrics: lyrics.to_string(),
             font_size: 40.0,
@@ -58,7 +67,7 @@ where
     fn size(&self) -> Size<Length> {
         Size {
             width: Length::Fill,
-            height: Length::Fill,
+            height: Length::Shrink,
         }
     }
 
@@ -68,7 +77,7 @@ where
         _renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        layout::Node::new(Size::new(limits.max().width, limits.max().height))
+        layout::Node::new(iced::ContentFit::Contain.fit(self.resolution, limits.max()))
     }
 
     fn draw(
@@ -87,19 +96,20 @@ where
             layout,
             viewport,
             &self.image,
-            iced::ContentFit::Fill,
+            iced::ContentFit::Contain,
             image::FilterMethod::Linear,
             iced::Rotation::default(),
             1.0,
             1.0,
         );
         let bounds = layout.bounds();
+        let scale_factor = bounds.width / self.resolution.width;
         // Title
         renderer.fill_text(
             Text {
                 content: self.title.clone(),
                 bounds: bounds.size(),
-                size: (self.font_size / 2.0).into(),
+                size: (self.font_size * scale_factor / 2.0).into(),
                 line_height: text::LineHeight::default(),
                 font: BOLD,
                 align_x: text::Alignment::Left,
@@ -117,7 +127,7 @@ where
         let lyrics = Text {
             content: self.lyrics.clone(),
             bounds: bounds.size(),
-            size: self.font_size.into(),
+            size: (self.font_size * scale_factor).into(),
             line_height: text::LineHeight::Relative(1.5),
             font: BOLD,
             align_x: text::Alignment::Center,

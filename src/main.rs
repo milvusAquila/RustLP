@@ -28,6 +28,7 @@ fn main() -> iced::Result {
 struct App {
     control: window::Id,
     display: window::Id,
+    resolution: Size,
     set: settings::Settings,
     db: Connection,
     sort: Option<db::Sort>,
@@ -55,7 +56,10 @@ enum Message {
 impl App {
     fn new() -> (Self, Task<Message>) {
         // Create the two windows
-        let (control_id, control) = window::open(window::Settings::default());
+        let (control_id, control) = window::open(window::Settings {
+            maximized: true,
+            ..Default::default()
+        });
         let (display_id, display) = window::open(window::Settings {
             fullscreen: true,
             level: window::Level::AlwaysOnTop,
@@ -68,6 +72,7 @@ impl App {
             Self {
                 control: control_id,
                 display: display_id,
+                resolution: Size::new(1920.0, 1080.0),
                 set: settings::Settings::default(),
                 db: db,
                 sort: Some(db::Sort::default()),
@@ -100,10 +105,7 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::WindowOpened(id) => match self.set.window {
-                Some(settings) if settings == id => Task::none(),
-                _ => window::maximize(id, true),
-            },
+            Message::WindowOpened(_id) => Task::none(),
             Message::Close(id) => {
                 if id == self.control {
                     Task::batch([
@@ -135,10 +137,13 @@ impl App {
                 Task::none()
             }
             Message::ChangeVerse(content, verse) => {
-                match content {
-                    Content::Direct => Song::set_current(&mut self.direct, verse),
-                    Content::Preview => (),
-                }
+                Song::set_current(
+                    match content {
+                        Content::Direct => &mut self.direct,
+                        Content::Preview => &mut self.preview,
+                    },
+                    verse,
+                );
                 Task::none()
             }
             // Settings
@@ -179,7 +184,7 @@ impl App {
         } else if Some(id) == self.set.window {
             self.view_settings()
         } else {
-            self.view_display()
+            self.view_display(Content::Direct)
         };
         if self.set.debug_layout {
             screen = screen.explain(iced::Color::WHITE);

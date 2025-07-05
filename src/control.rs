@@ -127,15 +127,17 @@ impl App {
                         .width(Length::Fill),
                 );
             }
-            container(column![
-                ttext(song.title(&self.books), self)
-                    .font(BOLD)
-                    .align_x(Alignment::Center)
-                    .width(Length::Fill),
-                scrollable(lyrics).width(Length::Fill).height(Length::Fill),
-                self.view_display(),
-                // TODO: Differentiate preview and direct, preserve texte size and ratio
-            ])
+            container(
+                column![
+                    ttext(song.title(&self.books), self)
+                        .font(BOLD)
+                        .align_x(Alignment::Center)
+                        .width(Length::Fill),
+                    scrollable(lyrics).width(Length::Fill).height(Length::Fill),
+                    self.view_display(content),
+                ]
+                .spacing(self.set.spacing),
+            )
         } else {
             container(ttext("No song selected", self).center())
         }
