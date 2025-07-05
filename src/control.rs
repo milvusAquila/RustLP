@@ -1,6 +1,8 @@
 use iced::{
     Alignment, Element, Font, Length, Theme,
-    widget::{Column, Container, button, column, container, pick_list, row, scrollable},
+    widget::{
+        Column, Container, button, column, container, horizontal_rule, pick_list, row, scrollable,
+    },
 };
 use rusqlite::Result;
 
@@ -134,6 +136,7 @@ impl App {
                         .align_x(Alignment::Center)
                         .width(Length::Fill),
                     scrollable(lyrics).width(Length::Fill).height(Length::Fill),
+                    horizontal_rule(2),
                     self.view_display(content),
                 ]
                 .spacing(self.set.spacing),
