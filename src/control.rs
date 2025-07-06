@@ -8,7 +8,7 @@ use rusqlite::Result;
 
 use crate::{
     App, Message,
-    db::Sort,
+    db::{Sort, load_index},
     style,
     widget::{BOLD, tbutton, ttext},
 };
@@ -64,53 +64,13 @@ impl App {
     }
 
     fn view_index(&self) -> Result<Column<'_, Message>> {
-        // Query database
         let mut index = column![];
-        let mut query = self.db.prepare(Sort::QUERYS[self.sort.unwrap() as usize])?;
-        let mut iterator = query.query([])?;
-        //  Create widgets
-        while let Ok(Some(i)) = iterator.next() {
-            if let Some(sort) = self.sort {
-                index = index.push(
-                    tbutton(
-                        match sort {
-                            Sort::Default => format!(
-                                "{}{}",
-                                if let Ok(book) = i.get::<_, String>(1) {
-                                    format!("{} {:03}  ", book, i.get::<_, u16>(2).unwrap_or(0))
-                                } else {
-                                    String::new()
-                                },
-                                i.get::<_, String>(3)?, // Title
-                            ),
-                            Sort::Title => format!(
-                                "{} ({})",
-                                i.get::<_, String>(1)?, // Title
-                                i.get::<_, String>(2)?, // Authors
-                            ),
-                            Sort::Songbook => {
-                                format!(
-                                    "{} {:03}  {}",
-                                    i.get::<_, String>(1)?, // Songbook
-                                    i.get::<_, u16>(2).unwrap_or(0), // Number
-                                    i.get::<_, String>(3)?, // Title
-                                )
-                            }
-                            Sort::Author => format!(
-                                "{} ({})",
-                                i.get::<_, String>(1)?, // Author
-                                i.get::<_, String>(2)?, // Title
-                            ),
-                        },
-                        self,
-                    )
+        for (id, title) in load_index(&self.db, self.sort.unwrap()).unwrap() {
+            index = index.push(
+                tbutton(title, self)
                     .width(Length::Fill)
-                    .on_press(Message::OpenSong(
-                        i.get::<_, u16>(0).unwrap().clone(),
-                        Content::Preview,
-                    )),
-                )
-            };
+                    .on_press(Message::OpenSong(id, Content::Preview)),
+            );
         }
         Ok(index)
     }

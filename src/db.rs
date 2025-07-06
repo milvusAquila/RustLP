@@ -41,6 +41,49 @@ pub fn load_songbooks(db: &Connection) -> Result<Vec<Book>> {
     Ok(books)
 }
 
+pub fn load_index(db: &Connection, sort: Sort) -> Result<Vec<(u16, String)>> {
+    // Query database
+    let mut index = vec![];
+    let mut query = db.prepare(Sort::QUERYS[0])?;
+    let mut iterator = query.query([])?;
+    //  Create widgets
+    while let Ok(Some(i)) = iterator.next() {
+        index.push((
+            i.get::<_, u16>(0).unwrap(),
+            match sort {
+                Sort::Default => format!(
+                    "{}{}",
+                    if let Ok(book) = i.get::<_, String>(1) {
+                        format!("{} {:03}  ", book, i.get::<_, u16>(2).unwrap_or(0))
+                    } else {
+                        String::new()
+                    },
+                    i.get::<_, String>(3)?, // Title
+                ),
+                Sort::Title => format!(
+                    "{} ({})",
+                    i.get::<_, String>(1)?, // Title
+                    i.get::<_, String>(2)?, // Authors
+                ),
+                Sort::Songbook => {
+                    format!(
+                        "{} {:03}  {}",
+                        i.get::<_, String>(1)?,          // Songbook
+                        i.get::<_, u16>(2).unwrap_or(0), // Number
+                        i.get::<_, String>(3)?,          // Title
+                    )
+                }
+                Sort::Author => format!(
+                    "{} ({})",
+                    i.get::<_, String>(1)?, // Author
+                    i.get::<_, String>(2)?, // Title
+                ),
+            },
+        ));
+    }
+    Ok(index)
+}
+
 pub fn load_song(db: &Connection, id: u16) -> Result<Song> {
     let mut query =
         db.prepare("SELECT id, title, lyrics, book, number FROM songs WHERE id = ?;")?;
