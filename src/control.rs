@@ -10,7 +10,7 @@ use crate::{
     App, Message,
     db::{Sort, load_index},
     style,
-    widget::{BOLD, tbutton, ttext},
+    widget::{BOLD, primary, secondary, tbutton, ttext},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -79,11 +79,16 @@ impl App {
         let song = &self.song[content as usize];
         if let Some(song) = song {
             let mut lyrics = column![];
-            for verse in song.lyrics.clone().into_iter() {
+            for (index, verse) in song.lyrics.clone().into_iter().enumerate() {
                 lyrics = lyrics.push(
-                    tbutton(verse.1, self)
-                        .on_press(Message::ChangeVerse(content, verse.0))
-                        .width(Length::Fill),
+                    button(ttext(verse.1, self))
+                        .on_press(Message::ChangeVerse(content, index))
+                        .width(Length::Fill)
+                        .style(if index == song.current {
+                            primary
+                        } else {
+                            secondary
+                        }),
                 );
             }
             container(

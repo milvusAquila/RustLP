@@ -1,7 +1,8 @@
 use crate::{App, Message};
 use iced::{
-    Font, Theme,
+    Background, Font, Theme,
     alignment::Vertical,
+    border,
     widget::{Button, button, text},
 };
 
@@ -25,3 +26,21 @@ pub const BOLD: Font = Font {
     weight: iced::font::Weight::Bold,
     ..Font::DEFAULT
 };
+
+pub fn primary(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
+    let text = button::text(theme, status);
+    button::Style {
+        background: Some(Background::Color(palette.background.weak.color)),
+        border: border::width(2).color(palette.background.strong.color),
+        ..text
+    }
+}
+pub fn secondary(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
+    let text = button::text(theme, status);
+    button::Style {
+        border: border::width(2).color(palette.background.weakest.color),
+        ..text
+    }
+}

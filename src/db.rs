@@ -163,7 +163,7 @@ pub struct Song {
     pub lyrics: Lyrics,
     pub book: Option<u16>,
     pub number: Option<u16>,
-    pub current: Option<Verse>,
+    pub current: usize,
 }
 
 impl Song {
@@ -193,9 +193,19 @@ impl Song {
         title
     }
 
-    pub fn set_current(song: &mut Option<Self>, verse: Verse) {
-        if let Some(song) = song {
-            song.current = Some(verse);
+    pub fn set_current(&mut self, verse: usize) {
+        self.current = verse;
+    }
+
+    pub fn set_previous(&mut self) {
+        if self.current > 0 {
+            self.current -= 1;
+        }
+    }
+
+    pub fn set_next(&mut self) {
+        if self.current + 1 < self.lyrics.0.len() {
+            self.current += 1;
         }
     }
 }
@@ -204,14 +214,13 @@ impl TryFrom<&Row<'_>> for Song {
     type Error = rusqlite::Error;
     fn try_from(value: &Row<'_>) -> std::result::Result<Self, Self::Error> {
         let lyrics: Lyrics = value.get::<_, String>(2)?.try_into().unwrap();
-        let current = Some(lyrics.0[0].0);
         Ok(Song {
             id: value.get(0)?,
             title: value.get(1)?,
             lyrics: lyrics,
             book: value.get::<_, Option<u16>>(3)?,
             number: value.get::<_, Option<u16>>(4)?,
-            current: current,
+            current: 0,
         })
     }
 }
@@ -240,10 +249,18 @@ impl Verse {
 pub struct Lyrics(Vec<(Verse, String)>);
 
 impl Lyrics {
-    pub fn get_verse(&self, verse: Verse) -> String {
+    /* pub fn get_verse(&self, verse: Verse) -> String {
         let result = self.0.iter().find(|x| x.0 == verse);
         if let Some(lyrics) = result {
             lyrics.1.clone()
+        } else {
+            String::new()
+        }
+    } */
+
+    pub fn get(&self, index: usize) -> String {
+        if index < self.0.len() {
+            self.0[index].1.to_string()
         } else {
             String::new()
         }

@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use crate::{
     control::Content,
-    db::{Book, Song, Verse, load_song},
+    db::{Book, Song, load_song},
 };
 
 mod control;
@@ -43,7 +43,9 @@ enum Message {
     SortChanged(db::Sort),
     OpenSong(u16, control::Content),
     PreviewToDirect,
-    ChangeVerse(Content, Verse),
+    ChangeVerse(Content, usize),
+    PreviousVerse,
+    NextVerse,
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -95,6 +97,8 @@ impl App {
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
                 Key::Named(key::Named::Enter) => Some(Message::PreviewToDirect),
+                Key::Named(key::Named::ArrowUp) => Some(Message::PreviousVerse),
+                Key::Named(key::Named::ArrowDown) => Some(Message::NextVerse),
                 _ => None,
             }),
             window::close_events().map(Message::Close),
@@ -135,7 +139,21 @@ impl App {
                 Task::none()
             }
             Message::ChangeVerse(content, verse) => {
-                Song::set_current(&mut self.song[content as usize], verse);
+                if let Some(song) = &mut self.song[content as usize] {
+                    song.set_current(verse);
+                }
+                Task::none()
+            }
+            Message::PreviousVerse => {
+                if let Some(song) = &mut self.song[1] {
+                    song.set_previous();
+                }
+                Task::none()
+            }
+            Message::NextVerse => {
+                if let Some(song) = &mut self.song[1] {
+                    song.set_next();
+                }
                 Task::none()
             }
             // Settings

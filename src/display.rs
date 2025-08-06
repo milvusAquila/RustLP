@@ -19,15 +19,11 @@ impl App {
     pub fn view_display(&self, content: Content) -> Element<'_, Message> {
         if let Some(song) = &self.song[content as usize] {
             let title = song.title(&self.books);
-            if let Some(current) = song.current {
-                Display::new(
-                    &song.lyrics.get_verse(current).as_str(),
-                    &title,
-                    self.resolution,
-                )
-            } else {
-                Display::new("", &title, self.resolution)
-            }
+            Display::new(
+                &song.lyrics.get(song.current).as_str(),
+                &title,
+                self.resolution,
+            )
             .into()
         } else {
             image(Handle::from_bytes(Bytes::from_static(DEFAULT_IMAGE))).into()
