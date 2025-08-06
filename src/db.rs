@@ -44,7 +44,7 @@ pub fn load_songbooks(db: &Connection) -> Result<Vec<Book>> {
 pub fn load_index(db: &Connection, sort: Sort) -> Result<Vec<(u16, String)>> {
     // Query database
     let mut index = vec![];
-    let mut query = db.prepare(Sort::QUERYS[0])?;
+    let mut query = db.prepare(Sort::QUERYS[sort as usize])?;
     let mut iterator = query.query([])?;
     //  Create widgets
     while let Ok(Some(i)) = iterator.next() {

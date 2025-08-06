@@ -15,8 +15,8 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub enum Content {
-    Preview,
-    Direct,
+    Preview = 0,
+    Direct = 1,
 }
 
 fn icon<'a>(codepoint: char) -> Element<'a, Message> {
@@ -76,10 +76,7 @@ impl App {
     }
 
     fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
-        let song = match content {
-            Content::Preview => &self.preview,
-            Content::Direct => &self.direct,
-        };
+        let song = &self.song[content as usize];
         if let Some(song) = song {
             let mut lyrics = column![];
             for verse in song.lyrics.clone().into_iter() {

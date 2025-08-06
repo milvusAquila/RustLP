@@ -32,8 +32,7 @@ struct App {
     set: settings::Settings,
     db: Connection,
     sort: Option<db::Sort>,
-    preview: Option<Song>,
-    direct: Option<Song>,
+    song: [Option<Song>; 2],
     books: Vec<Book>,
 }
 
@@ -76,8 +75,7 @@ impl App {
                 set: settings::Settings::default(),
                 db: db,
                 sort: Some(db::Sort::default()),
-                preview: None,
-                direct: None,
+                song: [None, None],
                 books: books,
             },
             Task::batch([
@@ -127,23 +125,17 @@ impl App {
             }
             Message::OpenSong(id, content) => {
                 match content {
-                    Content::Preview => self.preview = load_song(&self.db, id).ok(),
-                    Content::Direct => self.direct = self.preview.clone(),
+                    Content::Preview => self.song[0] = load_song(&self.db, id).ok(),
+                    Content::Direct => self.song[1] = self.song[0].clone(),
                 }
                 Task::none()
             }
             Message::PreviewToDirect => {
-                self.direct = self.preview.clone();
+                self.song[1] = self.song[0].clone();
                 Task::none()
             }
             Message::ChangeVerse(content, verse) => {
-                Song::set_current(
-                    match content {
-                        Content::Direct => &mut self.direct,
-                        Content::Preview => &mut self.preview,
-                    },
-                    verse,
-                );
+                Song::set_current(&mut self.song[content as usize], verse);
                 Task::none()
             }
             // Settings
