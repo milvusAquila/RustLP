@@ -339,6 +339,51 @@ impl TryFrom<String> for Lyrics {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct Service(Vec<Song>, usize);
+
+impl Service {
+    pub fn push(&mut self, song: Song) {
+        self.0.push(song);
+    }
+
+    pub fn set_current(&mut self, index: usize) {
+        if index < self.0.len() {
+            self.1 = index;
+        }
+    }
+
+    pub fn current_index(&self) -> Option<usize> {
+        if !self.0.is_empty() {
+            Some(self.1)
+        } else {
+            None
+        }
+    }
+
+    pub fn current(&self) -> Option<Song> {
+        if !self.0.is_empty() {
+            Some(self.0[self.1].clone())
+        } else {
+            None
+        }
+    }
+}
+
+impl From<Vec<Song>> for Service {
+    fn from(value: Vec<Song>) -> Self {
+        Self(value, 0)
+    }
+}
+
+impl IntoIterator for Service {
+    type IntoIter = std::vec::IntoIter<Song>;
+    type Item = Song;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

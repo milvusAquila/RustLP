@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use crate::{
     control::Content,
-    db::{Book, Song, load_song},
+    db::{Book, Service, Song, load_song},
 };
 
 mod control;
@@ -34,6 +34,7 @@ struct App {
     sort: Option<db::Sort>,
     song: [Option<Song>; 2],
     books: Vec<Book>,
+    service: Service,
 }
 
 #[derive(Debug, Clone)]
@@ -42,7 +43,8 @@ enum Message {
     Close(window::Id),
     SortChanged(db::Sort),
     OpenSong(u16, control::Content),
-    PreviewToDirect,
+    PreviewToService,
+    ServiceToDirect(usize),
     ChangeVerse(Content, usize),
     PreviousVerse,
     NextVerse,
@@ -79,6 +81,7 @@ impl App {
                 sort: Some(db::Sort::default()),
                 song: [None, None],
                 books: books,
+                service: Service::default(),
             },
             Task::batch([
                 control.map(Message::WindowOpened),
@@ -96,7 +99,7 @@ impl App {
         iced::Subscription::batch([
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
-                Key::Named(key::Named::Enter) => Some(Message::PreviewToDirect),
+                Key::Named(key::Named::Enter) => Some(Message::PreviewToService),
                 Key::Named(key::Named::ArrowUp) => Some(Message::PreviousVerse),
                 Key::Named(key::Named::ArrowDown) => Some(Message::NextVerse),
                 _ => None,
@@ -134,8 +137,15 @@ impl App {
                 }
                 Task::none()
             }
-            Message::PreviewToDirect => {
-                self.song[1] = self.song[0].clone();
+            Message::PreviewToService => {
+                if self.song[0].is_some() {
+                    self.service.push(self.song[0].clone().unwrap());
+                }
+                Task::none()
+            }
+            Message::ServiceToDirect(index) => {
+                self.service.set_current(index);
+                self.song[1] = self.service.current();
                 Task::none()
             }
             Message::ChangeVerse(content, verse) => {

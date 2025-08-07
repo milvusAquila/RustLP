@@ -2,6 +2,7 @@ use iced::{
     Alignment, Element, Font, Length, Theme,
     widget::{
         Column, Container, button, column, container, horizontal_rule, pick_list, row, scrollable,
+        vertical_rule,
     },
 };
 use rusqlite::Result;
@@ -53,14 +54,22 @@ impl App {
                 // Save 0e803
                 button(icon('\u{0e800}')).on_press(Message::OpenSettings)
             ],
-            ttext("TODO", self)
+            self.view_service(),
         ]
         .width(Length::FillPortion(10));
 
-        row![index, preview, direct, service]
-            .spacing(self.set.spacing)
-            .padding(5)
-            .into()
+        row![
+            index,
+            vertical_rule(2),
+            preview,
+            vertical_rule(2),
+            direct,
+            vertical_rule(2),
+            service
+        ]
+        .spacing(self.set.spacing)
+        .padding(5)
+        .into()
     }
 
     fn view_index(&self) -> Result<Column<'_, Message>> {
@@ -106,5 +115,22 @@ impl App {
         } else {
             container(ttext("No song selected", self).center())
         }
+    }
+
+    fn view_service(&self) -> Container<'_, Message, Theme> {
+        let mut titles = column![];
+        for song in self.service.clone().into_iter().enumerate() {
+            titles = titles.push(
+                button(ttext(song.1.title(&self.books), self))
+                    .on_press(Message::ServiceToDirect(song.0))
+                    .width(Length::Fill)
+                    .style(if song.0 == self.service.current_index().unwrap_or(0) {
+                        primary
+                    } else {
+                        secondary
+                    }),
+            );
+        }
+        container(titles)
     }
 }
