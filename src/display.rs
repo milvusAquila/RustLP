@@ -83,6 +83,8 @@ where
         _cursor: mouse::Cursor,
         viewport: &iced::Rectangle,
     ) {
+        use std::time::Instant;
+        let t1 = Instant::now();
         // Background
         image::draw(
             renderer,
@@ -95,6 +97,7 @@ where
             1.0,
             1.0,
         );
+        println!("t1: {}ms", t1.elapsed().as_millis());
         let bounds = layout.bounds();
         let scale_factor = bounds.width / self.resolution.width;
         // Title

@@ -81,7 +81,7 @@ impl App {
                 sort: Some(db::Sort::default()),
                 song: [None, None],
                 books: books,
-                service: Service::default(),
+                service: Service::new(),
             },
             Task::batch([
                 control.map(Message::WindowOpened),

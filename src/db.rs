@@ -236,6 +236,22 @@ pub enum VerseType {
     Other,
 }
 
+impl TryFrom<&str> for VerseType {
+    type Error = ();
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        match value {
+            "i" => Ok(VerseType::Intro),
+            "v" => Ok(VerseType::Verse),
+            "p" => Ok(VerseType::PreChorus),
+            "c" => Ok(VerseType::Chorus),
+            "b" => Ok(VerseType::Bridge),
+            "e" => Ok(VerseType::End),
+            "o" => Ok(VerseType::Other),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Verse(VerseType, u8);
 
@@ -269,7 +285,6 @@ impl Lyrics {
 
 impl IntoIterator for Lyrics {
     type Item = (Verse, String);
-
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -302,16 +317,12 @@ impl TryFrom<String> for Lyrics {
                             .as_str()
                         {
                             "type" => {
-                                match a.decode_and_unescape_value(decoder)?.to_string().as_str() {
-                                    "i" => verse = VerseType::Intro,
-                                    "v" => verse = VerseType::Verse,
-                                    "p" => verse = VerseType::PreChorus,
-                                    "c" => verse = VerseType::Chorus,
-                                    "b" => verse = VerseType::Bridge,
-                                    "e" => verse = VerseType::End,
-                                    "o" => verse = VerseType::Other,
-                                    _ => panic!(),
-                                }
+                                verse = a
+                                    .decode_and_unescape_value(decoder)?
+                                    .to_string()
+                                    .as_str()
+                                    .try_into()
+                                    .unwrap();
                             }
                             "label" => {
                                 nb = a
@@ -319,19 +330,18 @@ impl TryFrom<String> for Lyrics {
                                     .parse::<u8>()
                                     .expect("ERROR: Non valid number")
                             }
-                            _ => panic!(),
+                            other => println!("Unknown attribute: {}", other),
                         }
                     }
                 }
                 Ok(Event::CData(raw)) => {
                     txt = raw.decode()?.to_string();
                 }
+                Ok(Event::End(element)) if element.name().as_ref() == b"verse" => {
+                    lyrics.0.push((Verse::new(verse, nb), txt));
+                    (verse, nb, txt) = (VerseType::Other, 0, String::new());
+                }
                 _ => (),
-            }
-            if nb != 0 && txt != String::new() {
-                lyrics.0.push((Verse::new(verse, nb), txt));
-                nb = 0;
-                txt = String::new();
             }
             buf.clear();
         }
@@ -343,6 +353,10 @@ impl TryFrom<String> for Lyrics {
 pub struct Service(Vec<Song>, usize);
 
 impl Service {
+    pub fn new() -> Self {
+        Service(Vec::with_capacity(10), 0)
+    }
+
     pub fn push(&mut self, song: Song) {
         self.0.push(song);
     }
