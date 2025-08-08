@@ -1,8 +1,8 @@
 use iced::{
     Alignment, Element, Font, Length, Theme,
     widget::{
-        Column, Container, button, column, container, horizontal_rule, pick_list, row, scrollable,
-        vertical_rule,
+        Column, Container, button, column, container, horizontal_rule, mouse_area, pick_list, row,
+        scrollable, vertical_rule,
     },
 };
 use rusqlite::Result;
@@ -42,33 +42,22 @@ impl App {
         let preview = self
             .view_song(Content::Preview)
             .height(Length::Fill)
-            .width(Length::FillPortion(35));
+            .width(Length::FillPortion(40));
         let direct = self
             .view_song(Content::Direct)
             .height(Length::Fill)
-            .width(Length::FillPortion(35));
-        let service = column![
-            row![
-                // New 0e801
-                // File 0e802
-                // Save 0e803
-                button(icon('\u{0e800}')).on_press(Message::OpenSettings)
-            ],
-            self.view_service(),
-        ]
-        .width(Length::FillPortion(10));
+            .width(Length::FillPortion(40));
+        // New 0e801
+        // File 0e802
+        // Save 0e803
 
-        row![
-            index,
-            vertical_rule(2),
-            preview,
-            vertical_rule(2),
-            direct,
-            vertical_rule(2),
-            service
+        column![
+            row![button(icon('\u{0e800}')).on_press(Message::OpenSettings)],
+            horizontal_rule(2),
+            row![index, vertical_rule(2), preview, vertical_rule(2), direct]
+                .spacing(self.set.spacing)
+                .padding(5),
         ]
-        .spacing(self.set.spacing)
-        .padding(5)
         .into()
     }
 
@@ -76,17 +65,19 @@ impl App {
         let mut index = column![];
         for (id, title) in load_index(&self.db, self.sort.unwrap()).unwrap() {
             index = index.push(
-                tbutton(title, self)
-                    .width(Length::Fill)
-                    .on_press(Message::OpenSong(id, Content::Preview)),
+                mouse_area(
+                    tbutton(title, self)
+                        .width(Length::Fill)
+                        .on_press(Message::OpenSong(id, Content::Preview)),
+                )
+                .on_right_press(Message::OpenSong(id, Content::Direct)),
             );
         }
         Ok(index)
     }
 
     fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
-        let song = &self.song[content as usize];
-        if let Some(song) = song {
+        if let Some(song) = &self.songs[content as usize].current_song() {
             let mut lyrics = column![];
             for (index, verse) in song.lyrics.clone().into_iter().enumerate() {
                 lyrics = lyrics.push(
@@ -106,7 +97,12 @@ impl App {
                         .font(BOLD)
                         .align_x(Alignment::Center)
                         .width(Length::Fill),
-                    scrollable(lyrics).width(Length::Fill).height(Length::Fill),
+                    row![
+                        scrollable(lyrics)
+                            .width(Length::FillPortion(25))
+                            .height(Length::Fill),
+                        self.view_service(content).width(Length::FillPortion(15)),
+                    ],
                     horizontal_rule(2),
                     self.view_display(content),
                 ]
@@ -117,14 +113,17 @@ impl App {
         }
     }
 
-    fn view_service(&self) -> Container<'_, Message, Theme> {
+    fn view_service(&self, content: Content) -> Container<'_, Message, Theme> {
         let mut titles = column![];
-        for song in self.service.clone().into_iter().enumerate() {
+        let current = self.songs[content as usize]
+            .current_song_index()
+            .unwrap_or(0);
+        for song in self.songs[content as usize].clone().into_iter().enumerate() {
             titles = titles.push(
                 button(ttext(song.1.title(&self.books), self))
-                    .on_press(Message::ServiceToDirect(song.0))
+                    .on_press(Message::ChangeCurrent(song.0, content))
                     .width(Length::Fill)
-                    .style(if song.0 == self.service.current_index().unwrap_or(0) {
+                    .style(if song.0 == current {
                         primary
                     } else {
                         secondary

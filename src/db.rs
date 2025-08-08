@@ -194,7 +194,9 @@ impl Song {
     }
 
     pub fn set_current(&mut self, verse: usize) {
-        self.current = verse;
+        if verse < self.lyrics.0.len() {
+            self.current = verse;
+        }
     }
 
     pub fn set_previous(&mut self) {
@@ -357,17 +359,19 @@ impl Service {
         Service(Vec::with_capacity(10), 0)
     }
 
-    pub fn push(&mut self, song: Song) {
-        self.0.push(song);
+    pub fn push_maybe(&mut self, song: Option<Song>) {
+        if let Some(song) = song {
+            self.0.push(song);
+        }
     }
 
-    pub fn set_current(&mut self, index: usize) {
+    pub fn set_current_song(&mut self, index: usize) {
         if index < self.0.len() {
             self.1 = index;
         }
     }
 
-    pub fn current_index(&self) -> Option<usize> {
+    pub fn current_song_index(&self) -> Option<usize> {
         if !self.0.is_empty() {
             Some(self.1)
         } else {
@@ -375,11 +379,37 @@ impl Service {
         }
     }
 
-    pub fn current(&self) -> Option<Song> {
+    pub fn current_song(&self) -> Option<&Song> {
         if !self.0.is_empty() {
-            Some(self.0[self.1].clone())
+            Some(&self.0[self.1])
         } else {
             None
+        }
+    }
+
+    pub fn get_current_song(&mut self) -> Option<&mut Song> {
+        if !self.0.is_empty() {
+            Some(&mut self.0[self.1])
+        } else {
+            None
+        }
+    }
+
+    pub fn set_current_verse(&mut self, verse: usize) {
+        if let Some(song) = self.get_current_song() {
+            song.set_current(verse);
+        }
+    }
+
+    pub fn set_previous_verse(&mut self) {
+        if let Some(song) = self.get_current_song() {
+            song.set_previous();
+        }
+    }
+
+    pub fn set_next_verse(&mut self) {
+        if let Some(song) = self.get_current_song() {
+            song.set_next();
         }
     }
 }

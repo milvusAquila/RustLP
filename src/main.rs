@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use crate::{
     control::Content,
-    db::{Book, Service, Song, load_song},
+    db::{Book, Service, load_song},
 };
 
 mod control;
@@ -32,9 +32,8 @@ struct App {
     set: settings::Settings,
     db: Connection,
     sort: Option<db::Sort>,
-    song: [Option<Song>; 2],
+    songs: [Service; 2],
     books: Vec<Book>,
-    service: Service,
 }
 
 #[derive(Debug, Clone)]
@@ -42,12 +41,12 @@ enum Message {
     WindowOpened(window::Id),
     Close(window::Id),
     SortChanged(db::Sort),
-    OpenSong(u16, control::Content),
-    PreviewToService,
-    ServiceToDirect(usize),
+    OpenSong(u16, Content),
+    PreviewToDirect,
+    ChangeCurrent(usize, Content),
     ChangeVerse(Content, usize),
-    PreviousVerse,
-    NextVerse,
+    PreviousVerse(Content),
+    NextVerse(Content),
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -79,9 +78,8 @@ impl App {
                 set: settings::Settings::default(),
                 db: db,
                 sort: Some(db::Sort::default()),
-                song: [None, None],
+                songs: [Service::new(), Service::new()],
                 books: books,
-                service: Service::new(),
             },
             Task::batch([
                 control.map(Message::WindowOpened),
@@ -99,9 +97,9 @@ impl App {
         iced::Subscription::batch([
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
-                Key::Named(key::Named::Enter) => Some(Message::PreviewToService),
-                Key::Named(key::Named::ArrowUp) => Some(Message::PreviousVerse),
-                Key::Named(key::Named::ArrowDown) => Some(Message::NextVerse),
+                Key::Named(key::Named::Enter) => Some(Message::PreviewToDirect),
+                Key::Named(key::Named::ArrowUp) => Some(Message::PreviousVerse(Content::Direct)),
+                Key::Named(key::Named::ArrowDown) => Some(Message::NextVerse(Content::Direct)),
                 _ => None,
             }),
             window::close_events().map(Message::Close),
@@ -131,39 +129,28 @@ impl App {
                 Task::none()
             }
             Message::OpenSong(id, content) => {
-                match content {
-                    Content::Preview => self.song[0] = load_song(&self.db, id).ok(),
-                    Content::Direct => self.song[1] = self.song[0].clone(),
-                }
+                self.songs[content as usize].push_maybe(load_song(&self.db, id).ok());
                 Task::none()
             }
-            Message::PreviewToService => {
-                if self.song[0].is_some() {
-                    self.service.push(self.song[0].clone().unwrap());
-                }
+            Message::PreviewToDirect => {
+                self.songs[1].push_maybe(self.songs[0].current_song().cloned());
                 Task::none()
             }
-            Message::ServiceToDirect(index) => {
-                self.service.set_current(index);
-                self.song[1] = self.service.current();
+            Message::ChangeCurrent(index, content) => {
+                let service = &mut self.songs[content as usize];
+                service.set_current_song(index);
                 Task::none()
             }
             Message::ChangeVerse(content, verse) => {
-                if let Some(song) = &mut self.song[content as usize] {
-                    song.set_current(verse);
-                }
+                self.songs[content as usize].set_current_verse(verse);
                 Task::none()
             }
-            Message::PreviousVerse => {
-                if let Some(song) = &mut self.song[1] {
-                    song.set_previous();
-                }
+            Message::PreviousVerse(content) => {
+                self.songs[content as usize].set_previous_verse();
                 Task::none()
             }
-            Message::NextVerse => {
-                if let Some(song) = &mut self.song[1] {
-                    song.set_next();
-                }
+            Message::NextVerse(content) => {
+                self.songs[content as usize].set_next_verse();
                 Task::none()
             }
             // Settings

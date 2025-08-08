@@ -17,7 +17,7 @@ const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross.jpg");
 
 impl App {
     pub fn view_display(&self, content: Content) -> Element<'_, Message> {
-        if let Some(song) = &self.song[content as usize] {
+        if let Some(song) = &self.songs[content as usize].current_song() {
             let title = song.title(&self.books);
             Display::new(
                 &song.lyrics.get(song.current).as_str(),
