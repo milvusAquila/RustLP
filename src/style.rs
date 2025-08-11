@@ -1,5 +1,5 @@
 use iced::{
-    Background, Theme, border,
+    Theme, border,
     widget::{button, pick_list},
 };
 
@@ -23,20 +23,19 @@ pub fn theme_pick_list(theme: &Theme, status: pick_list::Status) -> pick_list::S
     }
 }
 
-pub fn primary(theme: &Theme, status: button::Status) -> button::Style {
-    let palette = theme.extended_palette();
-    let text = button::text(theme, status);
-    button::Style {
-        background: Some(Background::Color(palette.background.weak.color)),
-        border: border::width(2).color(palette.background.strong.color),
-        ..text
-    }
-}
 pub fn secondary(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
+    let secondary = button::secondary(theme, status);
+    button::Style {
+        border: border::width(1).color(palette.secondary.base.color),
+        ..secondary
+    }
+}
+pub fn text(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
     let text = button::text(theme, status);
     button::Style {
-        border: border::width(2).color(palette.background.weakest.color),
+        border: border::width(1).color(palette.secondary.base.color),
         ..text
     }
 }

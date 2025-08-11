@@ -19,7 +19,7 @@ impl Default for Settings {
         Self {
             window: None,
             font_size: 16.0,
-            spacing: 5.0,
+            spacing: 2.0,
             debug_layout: false,
             dark_theme: true,
         }

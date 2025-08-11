@@ -394,7 +394,7 @@ impl Service {
         }
     }
 
-    pub fn get_current_song(&mut self) -> Option<&mut Song> {
+/*     pub fn get_current_song(&mut self) -> Option<&mut Song> {
         if !self.0.is_empty() {
             Some(&mut self.0[self.1])
         } else {
@@ -418,7 +418,7 @@ impl Service {
         if let Some(song) = self.get_current_song() {
             song.set_next();
         }
-    }
+    } */
 }
 
 impl From<Vec<Song>> for Service {

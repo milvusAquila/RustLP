@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use crate::{
     control::Content,
-    db::{Book, Service, load_song},
+    db::{Book, Service, Song, load_song},
 };
 
 mod control;
@@ -33,7 +33,8 @@ struct App {
     db: Connection,
     db_select: u16,
     sort: Option<db::Sort>,
-    songs: [Service; 2],
+    service: Service,
+    songs: [Option<Song>; 2],
     books: Vec<Book>,
     search: String,
 }
@@ -45,8 +46,8 @@ enum Message {
     SortChanged(db::Sort),
     SelectSong(u16),
     OpenSong(u16, Content),
-    PreviewToDirect,
-    ChangeCurrent(usize, Content),
+    AddToService,
+    ChangeCurrent(usize),
     ChangeVerse(Content, usize),
     PreviousVerse(Content),
     NextVerse(Content),
@@ -83,7 +84,8 @@ impl App {
                 db: db,
                 db_select: 0,
                 sort: Some(db::Sort::default()),
-                songs: [Service::new(), Service::new()],
+                service: Service::new(),
+                songs: [None, None],
                 books: books,
                 search: String::new(),
             },
@@ -103,7 +105,7 @@ impl App {
         iced::Subscription::batch([
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
-                Key::Named(key::Named::Enter) => Some(Message::PreviewToDirect),
+                Key::Named(key::Named::Enter) => Some(Message::AddToService),
                 Key::Named(key::Named::ArrowUp) => Some(Message::PreviousVerse(Content::Direct)),
                 Key::Named(key::Named::ArrowDown) => Some(Message::NextVerse(Content::Direct)),
                 _ => None,
@@ -139,28 +141,35 @@ impl App {
                 Task::none()
             }
             Message::OpenSong(id, content) => {
-                self.songs[content as usize].push_maybe(load_song(&self.db, id).ok());
+                self.songs[content as usize] = load_song(&self.db, id).ok();
                 Task::none()
             }
-            Message::PreviewToDirect => {
-                self.songs[1].push_maybe(self.songs[0].current_song().cloned());
+            Message::AddToService => {
+                self.service
+                    .push_maybe(load_song(&self.db, self.db_select).ok());
                 Task::none()
             }
-            Message::ChangeCurrent(index, content) => {
-                let service = &mut self.songs[content as usize];
-                service.set_current_song(index);
+            Message::ChangeCurrent(index) => {
+                self.service.set_current_song(index);
+                self.songs[1] = self.service.current_song().cloned();
                 Task::none()
             }
             Message::ChangeVerse(content, verse) => {
-                self.songs[content as usize].set_current_verse(verse);
+                if let Some(song) = &mut self.songs[content as usize] {
+                    song.set_current(verse);
+                }
                 Task::none()
             }
             Message::PreviousVerse(content) => {
-                self.songs[content as usize].set_previous_verse();
+                if let Some(song) = &mut self.songs[content as usize] {
+                    song.set_previous();
+                }
                 Task::none()
             }
             Message::NextVerse(content) => {
-                self.songs[content as usize].set_next_verse();
+                if let Some(song) = &mut self.songs[content as usize] {
+                    song.set_next();
+                }
                 Task::none()
             }
             Message::SearchChanged(search) => {

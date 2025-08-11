@@ -32,33 +32,44 @@ impl App {
             pick_list(Sort::ALL, self.sort, Message::SortChanged)
                 .text_size(self.set.font_size)
                 .style(style::theme_pick_list)
-                .width(Length::FillPortion(20))
+                .width(Length::FillPortion(18))
                 .padding(self.set.spacing),
             text_input("Search", &self.search).on_input(Message::SearchChanged),
             scrollable(self.view_index().expect("ERROR: Failed to load index"))
-                .width(Length::FillPortion(20))
+                .width(Length::FillPortion(18))
                 .height(Length::Fill),
         ]
         .spacing(self.set.spacing);
         let preview = self
             .view_song(Content::Preview)
             .height(Length::Fill)
-            .width(Length::FillPortion(40));
+            .width(Length::FillPortion(32));
         let direct = self
             .view_song(Content::Direct)
             .height(Length::Fill)
-            .width(Length::FillPortion(40));
-        // New 0e801
-        // File 0e802
-        // Save 0e803
-
-        column![
-            row![button(icon('\u{0e800}')).on_press(Message::OpenSettings)],
-            horizontal_rule(2),
-            row![index, vertical_rule(2), preview, vertical_rule(2), direct]
-                .spacing(self.set.spacing)
-                .padding(5),
+            .width(Length::FillPortion(32));
+        let service = column![
+            row![
+                // New 0e801
+                // File 0e802
+                // Save 0e803
+                button(icon('\u{0e800}')).on_press(Message::OpenSettings)
+            ],
+            self.view_service(),
         ]
+        .width(Length::FillPortion(18));
+
+        row![
+            index,
+            vertical_rule(2),
+            preview,
+            vertical_rule(2),
+            direct,
+            vertical_rule(2),
+            service
+        ]
+        .spacing(self.set.spacing)
+        .padding(5)
         .into()
     }
 
@@ -84,7 +95,7 @@ impl App {
     }
 
     fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
-        if let Some(song) = &self.songs[content as usize].current_song() {
+        if let Some(song) = &self.songs[content as usize] {
             let mut lyrics = column![];
             for (index, verse) in song.lyrics.clone().into_iter().enumerate() {
                 lyrics = lyrics.push(
@@ -92,9 +103,9 @@ impl App {
                         .on_press(Message::ChangeVerse(content, index))
                         .width(Length::Fill)
                         .style(if index == song.current {
-                            style::primary
-                        } else {
                             style::secondary
+                        } else {
+                            style::text
                         }),
                 );
             }
@@ -104,12 +115,7 @@ impl App {
                         .font(BOLD)
                         .align_x(Alignment::Center)
                         .width(Length::Fill),
-                    row![
-                        scrollable(lyrics)
-                            .width(Length::FillPortion(25))
-                            .height(Length::Fill),
-                        self.view_service(content).width(Length::FillPortion(15)),
-                    ],
+                    scrollable(lyrics).width(Length::Fill).height(Length::Fill),
                     horizontal_rule(2),
                     self.view_display(content),
                 ]
@@ -120,20 +126,18 @@ impl App {
         }
     }
 
-    fn view_service(&self, content: Content) -> Container<'_, Message, Theme> {
+    fn view_service(&self) -> Container<'_, Message, Theme> {
         let mut titles = column![];
-        let current = self.songs[content as usize]
-            .current_song_index()
-            .unwrap_or(0);
-        for song in self.songs[content as usize].clone().into_iter().enumerate() {
+        let current = self.service.current_song_index().unwrap_or(0);
+        for song in self.service.clone().into_iter().enumerate() {
             titles = titles.push(
                 button(ttext(song.1.title(&self.books), self))
-                    .on_press(Message::ChangeCurrent(song.0, content))
+                    .on_double_click(Message::ChangeCurrent(song.0))
                     .width(Length::Fill)
                     .style(if song.0 == current {
-                        style::primary
-                    } else {
                         style::secondary
+                    } else {
+                        style::text
                     }),
             );
         }
