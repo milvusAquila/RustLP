@@ -31,9 +31,11 @@ struct App {
     resolution: Size,
     set: settings::Settings,
     db: Connection,
+    db_select: u16,
     sort: Option<db::Sort>,
     songs: [Service; 2],
     books: Vec<Book>,
+    search: String,
 }
 
 #[derive(Debug, Clone)]
@@ -41,12 +43,14 @@ enum Message {
     WindowOpened(window::Id),
     Close(window::Id),
     SortChanged(db::Sort),
+    SelectSong(u16),
     OpenSong(u16, Content),
     PreviewToDirect,
     ChangeCurrent(usize, Content),
     ChangeVerse(Content, usize),
     PreviousVerse(Content),
     NextVerse(Content),
+    SearchChanged(String),
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -77,9 +81,11 @@ impl App {
                 resolution: Size::new(1920.0, 1080.0),
                 set: settings::Settings::default(),
                 db: db,
+                db_select: 0,
                 sort: Some(db::Sort::default()),
                 songs: [Service::new(), Service::new()],
                 books: books,
+                search: String::new(),
             },
             Task::batch([
                 control.map(Message::WindowOpened),
@@ -128,6 +134,10 @@ impl App {
                 self.sort = Some(sort);
                 Task::none()
             }
+            Message::SelectSong(id) => {
+                self.db_select = id;
+                Task::none()
+            }
             Message::OpenSong(id, content) => {
                 self.songs[content as usize].push_maybe(load_song(&self.db, id).ok());
                 Task::none()
@@ -151,6 +161,10 @@ impl App {
             }
             Message::NextVerse(content) => {
                 self.songs[content as usize].set_next_verse();
+                Task::none()
+            }
+            Message::SearchChanged(search) => {
+                self.search = search;
                 Task::none()
             }
             // Settings

@@ -1,0 +1,172 @@
+diff --git a/widget/src/button.rs b/widget/src/button.rs
+index ac4a27cb..a25cb089 100644
+--- a/widget/src/button.rs
++++ b/widget/src/button.rs
+@@ -76,6 +76,7 @@ where
+ {
+     content: Element<'a, Message, Theme, Renderer>,
+     on_press: Option<OnPress<'a, Message>>,
++    on_double_click: Option<OnPress<'a, Message>>,
+     width: Length,
+     height: Length,
+     padding: Padding,
+@@ -113,6 +114,7 @@ where
+         Button {
+             content,
+             on_press: None,
++            on_double_click: None,
+             width: size.width.fluid(),
+             height: size.height.fluid(),
+             padding: DEFAULT_PADDING,
+@@ -142,7 +144,7 @@ where
+ 
+     /// Sets the message that will be produced when the [`Button`] is pressed.
+     ///
+-    /// Unless `on_press` is called, the [`Button`] will be disabled.
++    /// Unless `on_press` or `on_double_click` is called, the [`Button`] will be disabled.
+     pub fn on_press(mut self, on_press: Message) -> Self {
+         self.on_press = Some(OnPress::Direct(on_press));
+         self
+@@ -173,6 +175,43 @@ where
+         self
+     }
+ 
++    /// Sets the message that will be produced when the [`Button`] is double pressed.
++    ///
++    /// Unless `on_press` or `on_double_click` is called, the [`Button`] will be disabled.
++    pub fn on_double_click(mut self, on_double_click: Message) -> Self {
++        self.on_double_click = Some(OnPress::Direct(on_double_click));
++        self
++    }
++
++    /// Sets the message that will be produced when the [`Button`] is double pressed.
++    ///
++    /// This is analogous to [`Button::on_double_click`], but using a closure to produce
++    /// the message.
++    ///
++    /// This closure will only be called when the [`Button`] is actually pressed and,
++    /// therefore, this method is useful to reduce overhead if creating the resulting
++    /// message is slow.
++    pub fn on_double_click_with(
++        mut self,
++        on_double_click: impl Fn() -> Message + 'a,
++    ) -> Self {
++        self.on_double_click =
++            Some(OnPress::Closure(Box::new(on_double_click)));
++        self
++    }
++
++    /// Sets the message that will be produced when the [`Button`] is double pressed,
++    /// if `Some`.
++    ///
++    /// If `None`, the [`Button`] will be disabled.
++    pub fn on_double_click_maybe(
++        mut self,
++        on_double_click: Option<Message>,
++    ) -> Self {
++        self.on_double_click = on_double_click.map(OnPress::Direct);
++        self
++    }
++
+     /// Sets whether the contents of the [`Button`] should be clipped on
+     /// overflow.
+     pub fn clip(mut self, clip: bool) -> Self {
+@@ -199,9 +238,11 @@ where
+     }
+ }
+ 
+-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
++#[derive(Debug, Clone, Copy, Default)]
+ struct State {
+     is_pressed: bool,
++    is_double_click: bool,
++    previous_click: Option<mouse::Click>,
+ }
+ 
+ impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
+@@ -301,6 +342,31 @@ where
+         match event {
+             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+             | Event::Touch(touch::Event::FingerPressed { .. }) => {
++                if self.on_double_click.is_some() {
++                    let bounds = layout.bounds();
++
++                    if cursor.is_over(bounds) {
++                        if let Some(cursor_position) = cursor.position() {
++                            let state = tree.state.downcast_mut::<State>();
++
++                            let new_click = mouse::Click::new(
++                                cursor_position,
++                                mouse::Button::Left,
++                                state.previous_click,
++                            );
++
++                            if matches!(
++                                new_click.kind(),
++                                mouse::click::Kind::Double
++                            ) {
++                                state.is_double_click = true;
++                            }
++                            state.previous_click = Some(new_click);
++                            shell.capture_event();
++                        }
++                    }
++                }
++
+                 if self.on_press.is_some() {
+                     let bounds = layout.bounds();
+ 
+@@ -315,6 +381,21 @@ where
+             }
+             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+             | Event::Touch(touch::Event::FingerLifted { .. }) => {
++                if let Some(on_double_click) = &self.on_double_click {
++                    let state = tree.state.downcast_mut::<State>();
++
++                    if state.is_double_click {
++                        state.is_double_click = false;
++
++                        let bounds = layout.bounds();
++
++                        if cursor.is_over(bounds) {
++                            shell.publish(on_double_click.get());
++                            shell.capture_event();
++                        }
++                    }
++                }
++
+                 if let Some(on_press) = &self.on_press {
+                     let state = tree.state.downcast_mut::<State>();
+ 
+@@ -339,19 +420,20 @@ where
+             _ => {}
+         }
+ 
+-        let current_status = if self.on_press.is_none() {
+-            Status::Disabled
+-        } else if cursor.is_over(layout.bounds()) {
+-            let state = tree.state.downcast_ref::<State>();
++        let current_status =
++            if self.on_press.is_none() && self.on_double_click.is_none() {
++                Status::Disabled
++            } else if cursor.is_over(layout.bounds()) {
++                let state = tree.state.downcast_ref::<State>();
+ 
+-            if state.is_pressed {
+-                Status::Pressed
++                if state.is_pressed || state.is_double_click {
++                    Status::Pressed
++                } else {
++                    Status::Hovered
++                }
+             } else {
+-                Status::Hovered
+-            }
+-        } else {
+-            Status::Active
+-        };
++                Status::Active
++            };
+ 
+         if let Event::Window(window::Event::RedrawRequested(_now)) = event {
+             self.status = Some(current_status);

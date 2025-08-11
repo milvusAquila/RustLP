@@ -2,7 +2,7 @@ use iced::{
     Alignment, Element, Font, Length, Theme,
     widget::{
         Column, Container, button, column, container, horizontal_rule, mouse_area, pick_list, row,
-        scrollable, vertical_rule,
+        scrollable, text_input, vertical_rule,
     },
 };
 use rusqlite::Result;
@@ -11,7 +11,7 @@ use crate::{
     App, Message,
     db::{Sort, load_index},
     style,
-    widget::{BOLD, primary, secondary, tbutton, ttext},
+    widget::{BOLD, ttext},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -34,6 +34,7 @@ impl App {
                 .style(style::theme_pick_list)
                 .width(Length::FillPortion(20))
                 .padding(self.set.spacing),
+            text_input("Search", &self.search).on_input(Message::SearchChanged),
             scrollable(self.view_index().expect("ERROR: Failed to load index"))
                 .width(Length::FillPortion(20))
                 .height(Length::Fill),
@@ -63,14 +64,20 @@ impl App {
 
     fn view_index(&self) -> Result<Column<'_, Message>> {
         let mut index = column![];
-        for (id, title) in load_index(&self.db, self.sort.unwrap()).unwrap() {
+        for (id, title) in load_index(&self.db, self.sort.unwrap(), &self.search).unwrap() {
             index = index.push(
                 mouse_area(
-                    tbutton(title, self)
+                    button(ttext(title, self))
+                        .style(if id == self.db_select {
+                            button::secondary
+                        } else {
+                            button::text
+                        })
                         .width(Length::Fill)
-                        .on_press(Message::OpenSong(id, Content::Preview)),
+                        .on_press(Message::SelectSong(id))
+                        .on_double_click(Message::OpenSong(id, Content::Preview)),
                 )
-                .on_right_press(Message::OpenSong(id, Content::Direct)),
+                .on_middle_press(Message::OpenSong(id, Content::Direct)),
             );
         }
         Ok(index)
@@ -85,9 +92,9 @@ impl App {
                         .on_press(Message::ChangeVerse(content, index))
                         .width(Length::Fill)
                         .style(if index == song.current {
-                            primary
+                            style::primary
                         } else {
-                            secondary
+                            style::secondary
                         }),
                 );
             }
@@ -124,9 +131,9 @@ impl App {
                     .on_press(Message::ChangeCurrent(song.0, content))
                     .width(Length::Fill)
                     .style(if song.0 == current {
-                        primary
+                        style::primary
                     } else {
-                        secondary
+                        style::secondary
                     }),
             );
         }

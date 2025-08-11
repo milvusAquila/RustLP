@@ -1,6 +1,6 @@
 use quick_xml::{Reader, events::Event};
 use rusqlite::{Connection, Result, Row};
-use std::env;
+use std::{cmp::Ordering, env};
 
 pub fn connect_db() -> Result<Connection> {
     let db = Connection::open(format!(
@@ -28,7 +28,19 @@ pub fn connect_db() -> Result<Connection> {
                 name VARCHAR(255)
         );",
     )?;
+    db.create_collation("NOACCENTS", noaccents)?;
     Ok(db)
+}
+
+fn noaccents(title: &str, query: &str) -> Ordering {
+    use unidecode::unidecode;
+    let title = unidecode(&title.to_lowercase());
+    let query = unidecode(&query.to_lowercase());
+    if title.contains(&query) {
+        Ordering::Equal
+    } else {
+        Ordering::Greater
+    }
 }
 
 pub fn load_songbooks(db: &Connection) -> Result<Vec<Book>> {
@@ -41,11 +53,11 @@ pub fn load_songbooks(db: &Connection) -> Result<Vec<Book>> {
     Ok(books)
 }
 
-pub fn load_index(db: &Connection, sort: Sort) -> Result<Vec<(u16, String)>> {
+pub fn load_index(db: &Connection, sort: Sort, search: &String) -> Result<Vec<(u16, String)>> {
     // Query database
     let mut index = vec![];
     let mut query = db.prepare(Sort::QUERYS[sort as usize])?;
-    let mut iterator = query.query([])?;
+    let mut iterator = query.query([search])?;
     //  Create widgets
     while let Ok(Some(i)) = iterator.next() {
         index.push((
@@ -106,6 +118,7 @@ impl Sort {
             FROM songs s
             LEFT JOIN books b
             ON s.book = b.id
+            WHERE s.title = ?1 COLLATE NOACCENTS OR s.number = ?1
             GROUP BY s.id
             ORDER BY CASE WHEN b.name IS NULL THEN s.title ELSE b.name END,
                      CASE WHEN b.name IS NULL THEN '' ELSE s.number END;",
@@ -113,17 +126,20 @@ impl Sort {
             FROM songs s
             JOIN authors_songs asng ON s.id = asng.song_id
             JOIN authors a ON asng.author_id = a.id
+            WHERE s.title = ?1 COLLATE NOACCENTS
             GROUP BY s.id
             ORDER BY s.title;",
         "SELECT s.id, b.name, s.number, s.title
             FROM songs s
             JOIN books b
             ON s.book = b.id
+            WHERE s.number = ?1
             ORDER BY CASE WHEN b.name IS NULL THEN 1 ELSE 0 END, b.name;",
         "SELECT s.id, a.name, s.title
             FROM authors_songs asng
             JOIN authors a ON a.id = asng.author_id
             JOIN songs s ON s.id = asng.song_id
+            WHERE a.name = ?1 COLLATE NOACCENTS
             ORDER BY a.name,s.title;",
     ];
 }
@@ -267,15 +283,6 @@ impl Verse {
 pub struct Lyrics(Vec<(Verse, String)>);
 
 impl Lyrics {
-    /* pub fn get_verse(&self, verse: Verse) -> String {
-        let result = self.0.iter().find(|x| x.0 == verse);
-        if let Some(lyrics) = result {
-            lyrics.1.clone()
-        } else {
-            String::new()
-        }
-    } */
-
     pub fn get(&self, index: usize) -> String {
         if index < self.0.len() {
             self.0[index].1.to_string()
