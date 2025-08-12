@@ -1,5 +1,5 @@
 use iced::{
-    Color, Element, Font, Length, Size, Theme, Vector,
+    Background, Color, Element, Font, Length, Size, Theme, Vector,
     advanced::{
         Layout, Text, Widget,
         image::{Bytes, Handle},
@@ -8,31 +8,22 @@ use iced::{
     },
     alignment::Vertical,
     mouse,
-    widget::{image, text},
+    widget::{container, image, text},
 };
 
-use crate::{App, Message, control::Content, widget::BOLD};
+use crate::{App, Message, control::Content, db::Status, widget::BOLD};
 
 const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross.jpg");
 
 impl App {
     pub fn view_display(&self, content: Content) -> Element<'_, Message> {
-        if let Some(song) = &self.songs[content as usize] {
-            let title = song.title(&self.books);
-            Display::new(
-                &song.lyrics.get(song.current).as_str(),
-                &title,
-                self.resolution,
-            )
-            .into()
-        } else {
-            image(Handle::from_bytes(Bytes::from_static(DEFAULT_IMAGE))).into()
-        }
+        Display::new(self, content).into()
     }
 }
 
 struct Display {
     resolution: Size,
+    status: Status,
     title: String,
     lyrics: String,
     font_size: f32,
@@ -40,11 +31,19 @@ struct Display {
 }
 
 impl Display {
-    fn new(lyrics: &str, title: &str, resolution: Size) -> Self {
+    fn new(app: &App, content: Content) -> Self {
+        let song = &app
+            .service
+            .current_song(content)
+            .cloned()
+            .unwrap_or_default();
+        let title = song.title(&app.books);
+        let lyrics = song.lyrics.get(song.current);
         Self {
-            resolution: resolution,
-            title: title.to_string(),
-            lyrics: lyrics.to_string(),
+            resolution: app.resolution,
+            status: app.service.status[content as usize],
+            title: title,
+            lyrics: lyrics,
             font_size: 40.0,
             image: Handle::from_bytes(Bytes::from_static(DEFAULT_IMAGE)),
         }
@@ -83,60 +82,86 @@ where
         _cursor: mouse::Cursor,
         viewport: &iced::Rectangle,
     ) {
-        // Background
-        image::draw(
-            renderer,
-            layout,
-            viewport,
-            &self.image,
-            iced::ContentFit::Contain,
-            image::FilterMethod::Linear,
-            iced::Rotation::default(),
-            1.0,
-            1.0,
-        );
-        let bounds = layout.bounds();
-        let scale_factor = bounds.width / self.resolution.width;
-        // Title
-        renderer.fill_text(
-            Text {
-                content: self.title.clone(),
-                bounds: bounds.size(),
-                size: (self.font_size * scale_factor / 2.0).into(),
-                line_height: text::LineHeight::default(),
-                font: BOLD,
-                align_x: text::Alignment::Left,
-                align_y: Vertical::Bottom,
-                shaping: text::Shaping::default(),
-                wrapping: text::Wrapping::default(),
-            },
-            iced::Point {
-                x: layout.position().x,
-                y: layout.position().y + bounds.height,
-            },
-            Color::WHITE,
-            *viewport,
-        );
-        let lyrics = Text {
-            content: self.lyrics.clone(),
-            bounds: bounds.size(),
-            size: (self.font_size * scale_factor).into(),
-            line_height: text::LineHeight::Relative(1.5),
-            font: BOLD,
-            align_x: text::Alignment::Center,
-            align_y: Vertical::Center,
-            shaping: text::Shaping::default(),
-            wrapping: text::Wrapping::default(),
-        };
-        // Stroke
-        renderer.with_translation(Vector::new(-0.5, -0.5), |renderer| {
-            renderer.fill_text(lyrics.clone(), bounds.center(), Color::BLACK, *viewport)
-        });
-        renderer.with_translation(Vector::new(1.0, 1.0), |renderer| {
-            renderer.fill_text(lyrics.clone(), bounds.center(), Color::BLACK, *viewport)
-        });
-        // Lyrics
-        renderer.fill_text(lyrics, bounds.center(), Color::WHITE, *viewport);
+        match self.status {
+            Status::DarkScreen => {
+                let bounds = layout.bounds();
+                container::draw_background(
+                    renderer,
+                    &container::Style {
+                        background: Some(Background::Color(Color::BLACK)),
+                        ..Default::default()
+                    },
+                    bounds,
+                );
+            }
+            Status::WhiteScreen => {
+                let bounds = layout.bounds();
+                container::draw_background(
+                    renderer,
+                    &container::Style {
+                        background: Some(Background::Color(Color::WHITE)),
+                        ..Default::default()
+                    },
+                    bounds,
+                );
+            }
+            Status::Song => {
+                // Background
+                image::draw(
+                    renderer,
+                    layout,
+                    viewport,
+                    &self.image,
+                    iced::ContentFit::Contain,
+                    image::FilterMethod::Linear,
+                    iced::Rotation::default(),
+                    1.0,
+                    1.0,
+                );
+                let bounds = layout.bounds();
+                let scale_factor = bounds.width / self.resolution.width;
+                // Title
+                renderer.fill_text(
+                    Text {
+                        content: self.title.clone(),
+                        bounds: bounds.size(),
+                        size: (self.font_size * scale_factor / 2.0).into(),
+                        line_height: text::LineHeight::default(),
+                        font: BOLD,
+                        align_x: text::Alignment::Left,
+                        align_y: Vertical::Bottom,
+                        shaping: text::Shaping::default(),
+                        wrapping: text::Wrapping::default(),
+                    },
+                    iced::Point {
+                        x: layout.position().x,
+                        y: layout.position().y + bounds.height,
+                    },
+                    Color::WHITE,
+                    *viewport,
+                );
+                let lyrics = Text {
+                    content: self.lyrics.clone(),
+                    bounds: bounds.size(),
+                    size: (self.font_size * scale_factor).into(),
+                    line_height: text::LineHeight::Relative(1.5),
+                    font: BOLD,
+                    align_x: text::Alignment::Center,
+                    align_y: Vertical::Center,
+                    shaping: text::Shaping::default(),
+                    wrapping: text::Wrapping::default(),
+                };
+                // Stroke
+                renderer.with_translation(Vector::new(-0.5, -0.5), |renderer| {
+                    renderer.fill_text(lyrics.clone(), bounds.center(), Color::BLACK, *viewport)
+                });
+                renderer.with_translation(Vector::new(1.0, 1.0), |renderer| {
+                    renderer.fill_text(lyrics.clone(), bounds.center(), Color::BLACK, *viewport)
+                });
+                // Lyrics
+                renderer.fill_text(lyrics, bounds.center(), Color::WHITE, *viewport);
+            }
+        }
     }
 }
 

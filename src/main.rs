@@ -5,16 +5,15 @@ use rusqlite::Connection;
 
 use crate::{
     control::Content,
-    db::{
-        Service, load_index, load_song,
-        song::{Book, Song},
-    },
+    db::{Service, Status, load_index, load_song},
+    song::{Book, Song},
 };
 
 mod control;
 mod db;
 mod display;
 mod settings;
+mod song;
 mod style;
 mod widget;
 
@@ -38,7 +37,6 @@ struct App {
     sort: Option<db::Sort>,
     index: Vec<(u16, String)>,
     service: Service,
-    songs: [Option<Song>; 2],
     books: Vec<Book>,
     search: String,
 }
@@ -52,6 +50,7 @@ enum Message {
     OpenSong(u16, Content),
     AddToService,
     ChangeCurrent(usize),
+    ChangeScreen(Status, Content),
     ChangeVerse(Content, usize),
     Previous(Content),
     Next(Content),
@@ -96,7 +95,6 @@ impl App {
                 sort: Some(db::Sort::default()),
                 index: index,
                 service: Service::new(),
-                songs: [None, None],
                 books: books,
                 search: String::new(),
             },
@@ -162,7 +160,7 @@ impl App {
                 Task::none()
             }
             Message::OpenSong(id, content) => {
-                self.songs[content as usize] = load_song(&self.db, id).ok();
+                self.service.add(load_song(&self.db, id).ok(), content);
                 Task::none()
             }
             Message::AddToService => {
@@ -172,37 +170,32 @@ impl App {
             }
             Message::ChangeCurrent(index) => {
                 self.service.set_current_song(index);
-                self.songs[1] = self.service.current_song().cloned();
+                Task::none()
+            }
+            Message::ChangeScreen(status, content) => {
+                self.service.status[content as usize] = status;
                 Task::none()
             }
             Message::ChangeVerse(content, verse) => {
-                if let Some(song) = &mut self.songs[content as usize] {
+                if let Some(song) = &mut self.service.current_song_mut(content) {
                     song.set_current(verse);
                 }
                 Task::none()
             }
             Message::Previous(content) => {
-                if let Some(song) = &mut self.songs[content as usize] {
-                    song.set_previous();
-                }
+                self.service.change(content, Song::set_previous);
                 Task::none()
             }
             Message::Next(content) => {
-                if let Some(song) = &mut self.songs[content as usize] {
-                    song.set_next();
-                }
+                self.service.change(content, Song::set_next);
                 Task::none()
             }
             Message::NextChorus(content) => {
-                if let Some(song) = &mut self.songs[content as usize] {
-                    song.set_next_chorus();
-                }
+                self.service.change(content, Song::set_next_chorus);
                 Task::none()
             }
             Message::NextVerse(content) => {
-                if let Some(song) = &mut self.songs[content as usize] {
-                    song.set_next_verse();
-                }
+                self.service.change(content, Song::set_next_verse);
                 Task::none()
             }
             Message::GoSearch => iced::widget::text_input::focus("search"),

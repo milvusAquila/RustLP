@@ -10,12 +10,12 @@ use rusqlite::Result;
 
 use crate::{
     App, Message,
-    db::Sort,
+    db::{Sort, Status},
     style,
     widget::{BOLD, ttext},
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Content {
     Preview = 0,
     Direct = 1,
@@ -99,7 +99,7 @@ impl App {
     }
 
     fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
-        let Some(song) = &self.songs[content as usize] else {
+        let Some(song) = &self.service.current_song(content) else {
             return container(ttext("No song selected", self).width(Length::Fill).center());
         };
         let mut lyrics = column![horizontal_rule(1).style(style::soft_rule)];
@@ -127,6 +127,13 @@ impl App {
                 )
                 .push(horizontal_rule(1).style(style::soft_rule));
         }
+        let options = row![
+            button(ttext("Black", self))
+                .on_press(Message::ChangeScreen(Status::DarkScreen, content)),
+            button(ttext("White", self))
+                .on_press(Message::ChangeScreen(Status::WhiteScreen, content)),
+            button(ttext("Show", self)).on_press(Message::ChangeScreen(Status::Song, content)),
+        ];
         container(
             column![
                 ttext(song.title(&self.books), self)
@@ -134,6 +141,8 @@ impl App {
                     .align_x(Alignment::Center)
                     .width(Length::Fill),
                 scrollable(lyrics).width(Length::Fill).height(Length::Fill),
+                horizontal_rule(2),
+                options,
                 horizontal_rule(2),
                 self.view_display(content),
             ]

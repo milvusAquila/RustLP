@@ -2,7 +2,7 @@ use quick_xml::{Reader, events::Event};
 use rusqlite::Row;
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Song {
     pub id: u16,
     pub title: String,
@@ -122,7 +122,7 @@ impl TryFrom<&Row<'_>> for Book {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Lyrics(Vec<(Verse, String)>);
 
 impl Lyrics {

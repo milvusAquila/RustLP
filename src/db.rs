@@ -1,8 +1,10 @@
 use rusqlite::{Connection, Result};
 use std::{cmp::Ordering, env};
 
-pub mod song;
-use song::*;
+use crate::{
+    control::Content,
+    song::{Book, Song},
+};
 
 pub fn connect_db() -> Result<Connection> {
     let db = Connection::open(format!(
@@ -152,46 +154,100 @@ impl std::fmt::Display for Sort {
     }
 }
 
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub enum Status {
+    #[default]
+    DarkScreen,
+    WhiteScreen,
+    Song,
+}
+
 #[derive(Debug, Default, Clone)]
-pub struct Service(Vec<Song>, usize);
+pub struct Service {
+    list: Vec<Song>,
+    current: usize,
+    preview: Option<Song>,
+    pub status: [Status; 2],
+}
 
 impl Service {
     pub fn new() -> Self {
-        Service(Vec::with_capacity(10), 0)
+        Service {
+            list: Vec::with_capacity(10),
+            current: 0,
+            preview: None,
+            status: [Status::default(), Status::default()],
+        }
+    }
+
+    pub fn add(&mut self, song: Option<Song>, content: Content) {
+        match content {
+            Content::Preview => self.preview = song,
+            Content::Direct => self.push_maybe(song),
+        }
     }
 
     pub fn push_maybe(&mut self, song: Option<Song>) {
         if let Some(song) = song {
-            self.0.push(song);
+            self.list.push(song);
         }
     }
 
     pub fn set_current_song(&mut self, index: usize) {
-        if index < self.0.len() {
-            self.1 = index;
+        if index < self.list.len() {
+            self.current = index;
         }
     }
 
     pub fn current_song_index(&self) -> Option<usize> {
-        if !self.0.is_empty() {
-            Some(self.1)
+        if !self.list.is_empty() {
+            Some(self.current)
         } else {
             None
         }
     }
 
-    pub fn current_song(&self) -> Option<&Song> {
-        if !self.0.is_empty() {
-            Some(&self.0[self.1])
-        } else {
-            None
+    pub fn current_song(&self, content: Content) -> Option<&Song> {
+        match content {
+            Content::Direct => {
+                if !self.list.is_empty() {
+                    Some(&self.list[self.current])
+                } else {
+                    None
+                }
+            }
+            Content::Preview => self.preview.as_ref(),
+        }
+    }
+
+    pub fn current_song_mut(&mut self, content: Content) -> Option<&mut Song> {
+        match content {
+            Content::Direct => {
+                if !self.list.is_empty() {
+                    Some(&mut self.list[self.current])
+                } else {
+                    None
+                }
+            }
+            Content::Preview => self.preview.as_mut(),
+        }
+    }
+
+    pub fn change(&mut self, content: Content, f: impl Fn(&mut Song)) {
+        if let Some(song) = self.current_song_mut(content) {
+            f(song);
         }
     }
 }
 
 impl From<Vec<Song>> for Service {
     fn from(value: Vec<Song>) -> Self {
-        Self(value, 0)
+        Self {
+            list: value,
+            current: 0,
+            preview: None,
+            status: [Status::default(), Status::default()],
+        }
     }
 }
 
@@ -199,7 +255,7 @@ impl IntoIterator for Service {
     type IntoIter = std::vec::IntoIter<Song>;
     type Item = Song;
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.list.into_iter()
     }
 }
 
