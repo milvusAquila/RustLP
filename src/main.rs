@@ -5,7 +5,10 @@ use rusqlite::Connection;
 
 use crate::{
     control::Content,
-    db::{Book, Service, Song, load_song},
+    db::{
+        Service, load_song,
+        song::{Book, Song},
+    },
 };
 
 mod control;
