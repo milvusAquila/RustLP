@@ -10,7 +10,7 @@ use rusqlite::Result;
 
 use crate::{
     App, Message,
-    db::{Sort, load_index},
+    db::Sort,
     style,
     widget::{BOLD, ttext},
 };
@@ -35,7 +35,10 @@ impl App {
                 .style(style::theme_pick_list)
                 .width(Length::FillPortion(18))
                 .padding(self.set.spacing),
-            text_input("Search", &self.search).on_input(Message::SearchChanged),
+            text_input("Search", &self.search)
+                .id("search")
+                .on_input(Message::SearchChanged)
+                .on_submit(Message::ExitSearch),
             scrollable(self.view_index().expect("ERROR: Failed to load index"))
                 .width(Length::FillPortion(18))
                 .height(Length::Fill),
@@ -76,20 +79,20 @@ impl App {
 
     fn view_index(&self) -> Result<Column<'_, Message>> {
         let mut index = column![];
-        for (id, title) in load_index(&self.db, self.sort.unwrap(), &self.search).unwrap() {
+        for (id, title) in &self.index {
             index = index.push(
                 mouse_area(
                     button(ttext(title, self))
-                        .style(if id == self.db_select {
+                        .style(if *id == self.db_select {
                             button::secondary
                         } else {
                             button::text
                         })
                         .width(Length::Fill)
-                        .on_press(Message::SelectSong(id))
-                        .on_double_click(Message::OpenSong(id, Content::Preview)),
+                        .on_press(Message::SelectSong(*id))
+                        .on_double_click(Message::OpenSong(*id, Content::Preview)),
                 )
-                .on_middle_press(Message::OpenSong(id, Content::Direct)),
+                .on_middle_press(Message::OpenSong(*id, Content::Direct)),
             );
         }
         Ok(index)

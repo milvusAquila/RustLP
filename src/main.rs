@@ -6,7 +6,7 @@ use rusqlite::Connection;
 use crate::{
     control::Content,
     db::{
-        Service, load_song,
+        Service, load_index, load_song,
         song::{Book, Song},
     },
 };
@@ -36,6 +36,7 @@ struct App {
     db: Connection,
     db_select: u16,
     sort: Option<db::Sort>,
+    index: Vec<(u16, String)>,
     service: Service,
     songs: [Option<Song>; 2],
     books: Vec<Book>,
@@ -56,7 +57,9 @@ enum Message {
     Next(Content),
     NextChorus(Content),
     NextVerse(Content),
+    GoSearch,
     SearchChanged(String),
+    ExitSearch,
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -80,6 +83,8 @@ impl App {
         });
         let db = db::connect_db().expect("ERROR: Failed to connect database");
         let books = db::load_songbooks(&db).expect("ERROR: Failed to load books");
+        let index = load_index(&db, db::Sort::default(), &String::new())
+            .expect("ERROR: Failed to load index");
         (
             Self {
                 control: control_id,
@@ -89,6 +94,7 @@ impl App {
                 db: db,
                 db_select: 0,
                 sort: Some(db::Sort::default()),
+                index: index,
                 service: Service::new(),
                 songs: [None, None],
                 books: books,
@@ -110,6 +116,7 @@ impl App {
         iced::Subscription::batch([
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
+                Key::Character("f") if modifiers.command() => Some(Message::GoSearch),
                 Key::Character("c") if modifiers.is_empty() => {
                     Some(Message::NextChorus(Content::Direct))
                 }
@@ -147,6 +154,7 @@ impl App {
             }
             Message::SortChanged(sort) => {
                 self.sort = Some(sort);
+                self.index = load_index(&self.db, self.sort.unwrap(), &self.search).unwrap();
                 Task::none()
             }
             Message::SelectSong(id) => {
@@ -197,10 +205,18 @@ impl App {
                 }
                 Task::none()
             }
+            Message::GoSearch => iced::widget::text_input::focus("search"),
             Message::SearchChanged(search) => {
                 self.db_select = 0;
                 self.search = search;
+                self.index = load_index(&self.db, self.sort.unwrap(), &self.search).unwrap();
                 Task::none()
+            }
+            Message::ExitSearch => {
+                if !self.index.is_empty() {
+                    self.db_select = self.index[0].0;
+                }
+                iced::widget::text_input::focus("none")
             }
             // Settings
             Message::OpenSettings => {
