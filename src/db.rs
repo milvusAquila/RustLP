@@ -1,6 +1,6 @@
 use quick_xml::{Reader, events::Event};
 use rusqlite::{Connection, Result, Row};
-use std::{cmp::Ordering, env};
+use std::{cmp::Ordering, env, fmt::Display};
 
 pub fn connect_db() -> Result<Connection> {
     let db = Connection::open(format!(
@@ -66,7 +66,7 @@ pub fn load_index(db: &Connection, sort: Sort, search: &String) -> Result<Vec<(u
                 Sort::Default => format!(
                     "{}{}",
                     if let Ok(book) = i.get::<_, String>(1) {
-                        format!("{} {:03}  ", book, i.get::<_, u16>(2).unwrap_or(0))
+                        format!("{} {:03}  ", book, i.get::<_, u16>(2).unwrap_or(0)) // Songbook Number
                     } else {
                         String::new()
                     },
@@ -226,6 +226,33 @@ impl Song {
             self.current += 1;
         }
     }
+
+    pub fn set_next_chorus(&mut self) {
+        self.set_next_type(VerseType::Chorus);
+    }
+
+    pub fn set_next_verse(&mut self) {
+        self.set_next_type(VerseType::Verse);
+    }
+
+    // Go to the next verse of vtype even if it is before current position
+    fn set_next_type(&mut self, vtype: VerseType) {
+        let lyrics = &self.lyrics.0;
+        // End of the song
+        for id in self.current + 1..self.lyrics.0.len() {
+            if lyrics[id].0.0 == vtype {
+                self.current = id;
+                return;
+            }
+        }
+        // Continue at the beginning if not found in the end
+        for id in 0..self.current {
+            if lyrics[id].0.0 == vtype {
+                self.current = id;
+                return;
+            }
+        }
+    }
 }
 
 impl TryFrom<&Row<'_>> for Song {
@@ -254,6 +281,24 @@ pub enum VerseType {
     Other,
 }
 
+impl Display for VerseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                VerseType::Intro => "I",
+                VerseType::Verse => "V",
+                VerseType::PreChorus => "P",
+                VerseType::Chorus => "C",
+                VerseType::Bridge => "B",
+                VerseType::End => "E",
+                VerseType::Other => "O",
+            }
+        )
+    }
+}
+
 impl TryFrom<&str> for VerseType {
     type Error = ();
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
@@ -276,6 +321,12 @@ pub struct Verse(VerseType, u8);
 impl Verse {
     pub fn new(versetype: VerseType, nb: u8) -> Self {
         Self(versetype, nb)
+    }
+}
+
+impl Display for Verse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.0, self.1)
     }
 }
 
@@ -394,7 +445,7 @@ impl Service {
         }
     }
 
-/*     pub fn get_current_song(&mut self) -> Option<&mut Song> {
+    /*     pub fn get_current_song(&mut self) -> Option<&mut Song> {
         if !self.0.is_empty() {
             Some(&mut self.0[self.1])
         } else {

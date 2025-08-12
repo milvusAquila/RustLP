@@ -49,7 +49,9 @@ enum Message {
     AddToService,
     ChangeCurrent(usize),
     ChangeVerse(Content, usize),
-    PreviousVerse(Content),
+    Previous(Content),
+    Next(Content),
+    NextChorus(Content),
     NextVerse(Content),
     SearchChanged(String),
     // Settings
@@ -105,9 +107,17 @@ impl App {
         iced::Subscription::batch([
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
-                Key::Named(key::Named::Enter) => Some(Message::AddToService),
-                Key::Named(key::Named::ArrowUp) => Some(Message::PreviousVerse(Content::Direct)),
-                Key::Named(key::Named::ArrowDown) => Some(Message::NextVerse(Content::Direct)),
+                Key::Character("c") if modifiers.is_empty() => {
+                    Some(Message::NextChorus(Content::Direct))
+                }
+                Key::Character("v") if modifiers.is_empty() => {
+                    Some(Message::NextVerse(Content::Direct))
+                }
+                Key::Named(key::Named::Enter) if modifiers.is_empty() => {
+                    Some(Message::AddToService)
+                }
+                Key::Named(key::Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
+                Key::Named(key::Named::ArrowDown) => Some(Message::Next(Content::Direct)),
                 _ => None,
             }),
             window::close_events().map(Message::Close),
@@ -160,19 +170,32 @@ impl App {
                 }
                 Task::none()
             }
-            Message::PreviousVerse(content) => {
+            Message::Previous(content) => {
                 if let Some(song) = &mut self.songs[content as usize] {
                     song.set_previous();
                 }
                 Task::none()
             }
-            Message::NextVerse(content) => {
+            Message::Next(content) => {
                 if let Some(song) = &mut self.songs[content as usize] {
                     song.set_next();
                 }
                 Task::none()
             }
+            Message::NextChorus(content) => {
+                if let Some(song) = &mut self.songs[content as usize] {
+                    song.set_next_chorus();
+                }
+                Task::none()
+            }
+            Message::NextVerse(content) => {
+                if let Some(song) = &mut self.songs[content as usize] {
+                    song.set_next_verse();
+                }
+                Task::none()
+            }
             Message::SearchChanged(search) => {
+                self.db_select = 0;
                 self.search = search;
                 Task::none()
             }

@@ -1,5 +1,6 @@
 use iced::{
     Alignment, Element, Font, Length, Theme,
+    alignment::Vertical,
     widget::{
         Column, Container, button, column, container, horizontal_rule, mouse_area, pick_list, row,
         scrollable, text_input, vertical_rule,
@@ -95,35 +96,46 @@ impl App {
     }
 
     fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
-        if let Some(song) = &self.songs[content as usize] {
-            let mut lyrics = column![];
-            for (index, verse) in song.lyrics.clone().into_iter().enumerate() {
-                lyrics = lyrics.push(
-                    button(ttext(verse.1, self))
-                        .on_press(Message::ChangeVerse(content, index))
-                        .width(Length::Fill)
-                        .style(if index == song.current {
-                            style::secondary
-                        } else {
-                            style::text
-                        }),
-                );
-            }
-            container(
-                column![
-                    ttext(song.title(&self.books), self)
-                        .font(BOLD)
-                        .align_x(Alignment::Center)
-                        .width(Length::Fill),
-                    scrollable(lyrics).width(Length::Fill).height(Length::Fill),
-                    horizontal_rule(2),
-                    self.view_display(content),
-                ]
-                .spacing(self.set.spacing),
-            )
-        } else {
-            container(ttext("No song selected", self).center())
+        let Some(song) = &self.songs[content as usize] else {
+            return container(ttext("No song selected", self).width(Length::Fill).center());
+        };
+        let mut lyrics = column![horizontal_rule(1).style(style::soft_rule)];
+        for (index, verse) in song.lyrics.clone().into_iter().enumerate() {
+            lyrics = lyrics
+                .push(
+                    row![
+                        vertical_rule(1).style(style::soft_rule),
+                        // Verse id
+                        ttext(format!("{}", verse.0), self).style(style::soft_text),
+                        vertical_rule(1).style(style::soft_rule),
+                        // Lyrics
+                        button(ttext(verse.1, self))
+                            .on_press(Message::ChangeVerse(content, index))
+                            .width(Length::Fill)
+                            .style(if index == song.current {
+                                button::secondary
+                            } else {
+                                button::text
+                            }),
+                        vertical_rule(1).style(style::soft_rule),
+                    ]
+                    .height(Length::Shrink)
+                    .align_y(Vertical::Center),
+                )
+                .push(horizontal_rule(1).style(style::soft_rule));
         }
+        container(
+            column![
+                ttext(song.title(&self.books), self)
+                    .font(BOLD)
+                    .align_x(Alignment::Center)
+                    .width(Length::Fill),
+                scrollable(lyrics).width(Length::Fill).height(Length::Fill),
+                horizontal_rule(2),
+                self.view_display(content),
+            ]
+            .spacing(self.set.spacing),
+        )
     }
 
     fn view_service(&self) -> Container<'_, Message, Theme> {
@@ -135,9 +147,9 @@ impl App {
                     .on_double_click(Message::ChangeCurrent(song.0))
                     .width(Length::Fill)
                     .style(if song.0 == current {
-                        style::secondary
+                        style::border_secondary
                     } else {
-                        style::text
+                        style::border_text
                     }),
             );
         }
