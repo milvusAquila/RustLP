@@ -1,0 +1,76 @@
+{
+  "name": "icons",
+  "css_prefix_text": "icon-",
+  "css_use_suffix": false,
+  "hinting": true,
+  "units_per_em": 1000,
+  "ascent": 850,
+  "glyphs": [
+    {
+      "uid": "e99461abfef3923546da8d745372c995",
+      "css": "cog",
+      "code": 59392,
+      "src": "fontawesome"
+    },
+    {
+      "uid": "1b5a5d7b7e3c71437f5a26befdd045ed",
+      "css": "doc",
+      "code": 59393,
+      "src": "fontawesome"
+    },
+    {
+      "uid": "c95735c17a10af81448c7fed98a04546",
+      "css": "folder-open",
+      "code": 59394,
+      "src": "fontawesome"
+    },
+    {
+      "uid": "f4445feb55521283572ee88bc304f928",
+      "css": "floppy",
+      "code": 59395,
+      "src": "fontawesome"
+    },
+    {
+      "uid": "5e648f1945346690e9a121ecbfe50223",
+      "css": "white-screen",
+      "code": 59397,
+      "src": "custom_icons",
+      "selected": true,
+      "svg": {
+        "path": "M0 0V50 700H50 450V950H0V1000H1000V950H550V700H1000V650 0H50ZM50 50H950V650H50Z",
+        "width": 1000
+      },
+      "search": [
+        "white-screen"
+      ]
+    },
+    {
+      "uid": "d150e120fd38743127ecc2a3dc91a003",
+      "css": "dark-screen",
+      "code": 59396,
+      "src": "custom_icons",
+      "selected": true,
+      "svg": {
+        "path": "M0 0V700H450V950H0V1000H1000V950H550V700H1000V0Z",
+        "width": 1000
+      },
+      "search": [
+        "dark-screen"
+      ]
+    },
+    {
+      "uid": "53d76d8aa4c6da4fd73de9aa91bfd207",
+      "css": "lyrics-screen",
+      "code": 59398,
+      "src": "custom_icons",
+      "selected": true,
+      "svg": {
+        "path": "M0 0V50 700H50 450V950H0V1000H1000V950H550V700H1000V650 0H50ZM50 50H950V650H50ZM100 150V200H900V150ZM100 300V350H900V300ZM100 450V500H900V450Z",
+        "width": 1000
+      },
+      "search": [
+        "lyrics-screen"
+      ]
+    }
+  ]
+}
