@@ -128,11 +128,9 @@ impl App {
                 .push(horizontal_rule(1).style(style::soft_rule));
         }
         let options = row![
-            button(ttext("Black", self))
-                .on_press(Message::ChangeScreen(Status::DarkScreen, content)),
-            button(ttext("White", self))
-                .on_press(Message::ChangeScreen(Status::WhiteScreen, content)),
-            button(ttext("Show", self)).on_press(Message::ChangeScreen(Status::Song, content)),
+            button(icon('\u{0e804}')).on_press(Message::ChangeScreen(Status::DarkScreen, content)),
+            button(icon('\u{0e805}')).on_press(Message::ChangeScreen(Status::WhiteScreen, content)),
+            button(icon('\u{0e806}')).on_press(Message::ChangeScreen(Status::Song, content)),
         ];
         container(
             column![
