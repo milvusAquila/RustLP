@@ -2,15 +2,15 @@ use iced::{
     Alignment, Element, Font, Length, Theme,
     alignment::Vertical,
     widget::{
-        Column, Container, button, column, container, horizontal_rule, mouse_area, pick_list, row,
-        scrollable, text_input, vertical_rule,
+        Column, Container, button, column, container, horizontal_rule, horizontal_space,
+        mouse_area, pick_list, row, scrollable, text_input, vertical_rule, vertical_space,
     },
 };
 use rusqlite::Result;
 
 use crate::{
     App, Message,
-    db::{Sort, Status},
+    db::{SAction, Sort, Status},
     style,
     widget::{BOLD, ttext},
 };
@@ -53,13 +53,12 @@ impl App {
             .height(Length::Fill)
             .width(Length::FillPortion(32));
         let service = column![
+            self.view_service(),
+            vertical_space(),
             row![
-                // New 0e801
-                // File 0e802
-                // Save 0e803
+                horizontal_space(),
                 button(icon('\u{0e800}')).on_press(Message::OpenSettings)
             ],
-            self.view_service(),
         ]
         .width(Length::FillPortion(18));
 
@@ -149,6 +148,11 @@ impl App {
     }
 
     fn view_service(&self) -> Container<'_, Message, Theme> {
+        let control = row![
+            button(icon('\u{0e801}')).on_press(Message::ServiceAction(SAction::New)),
+            button(icon('\u{0e802}')).on_press(Message::ServiceAction(SAction::Open)),
+            button(icon('\u{0e803}')).on_press(Message::ServiceAction(SAction::Save)),
+        ];
         let mut titles = column![];
         let current = self.service.current_song_index().unwrap_or(0);
         for song in self.service.clone().into_iter().enumerate() {
@@ -163,6 +167,6 @@ impl App {
                     }),
             );
         }
-        container(titles)
+        container(column![control, titles])
     }
 }

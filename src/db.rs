@@ -1,7 +1,9 @@
+use iced::Task;
 use rusqlite::{Connection, Result};
 use std::{cmp::Ordering, env};
 
 use crate::{
+    Message,
     control::Content,
     song::{Book, Song},
 };
@@ -233,11 +235,32 @@ impl Service {
         }
     }
 
-    pub fn change(&mut self, content: Content, f: impl Fn(&mut Song)) {
+    pub fn change(&mut self, content: Content, f: impl Fn(&mut Song)) -> Task<Message> {
         if let Some(song) = self.current_song_mut(content) {
             f(song);
         }
+        Task::none()
     }
+
+    pub fn perform(&mut self, saction: SAction) -> Task<Message> {
+        match saction {
+            SAction::New => {
+                self.list = Vec::with_capacity(10);
+                self.current = 0;
+                self.status[1] = Status::default();
+            }
+            // OpenLP service files are zip files what contains a service_data.osj file (in json)
+            SAction::Open => todo!(),
+            SAction::Save => todo!(),
+        }
+        Task::none()
+    }
+
+    /*
+    %USERPROFILE%\AppData\Local\RustLP\
+    Compress-Archive file1 file2 archive.zip
+    Expand-Archive archive.zip target
+     */
 }
 
 impl From<Vec<Song>> for Service {
@@ -257,6 +280,13 @@ impl IntoIterator for Service {
     fn into_iter(self) -> Self::IntoIter {
         self.list.into_iter()
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SAction {
+    New,
+    Open,
+    Save,
 }
 
 #[cfg(test)]

@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use crate::{
     control::Content,
-    db::{Service, Status, load_index, load_song},
+    db::{SAction, Service, Status, load_index, load_song},
     song::{Book, Song},
 };
 
@@ -48,6 +48,7 @@ enum Message {
     SortChanged(db::Sort),
     SelectSong(u16),
     OpenSong(u16, Content),
+    ServiceAction(SAction),
     AddToService,
     ChangeCurrent(usize),
     ChangeScreen(Status, Content),
@@ -110,7 +111,7 @@ impl App {
     }
 
     fn subscription(&self) -> iced::Subscription<Message> {
-        use iced::keyboard::*;
+        use iced::keyboard::{Key, key::Named, on_key_press};
         iced::Subscription::batch([
             on_key_press(|key, modifiers| match key.as_ref() {
                 Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
@@ -121,11 +122,9 @@ impl App {
                 Key::Character("v") if modifiers.is_empty() => {
                     Some(Message::NextVerse(Content::Direct))
                 }
-                Key::Named(key::Named::Enter) if modifiers.is_empty() => {
-                    Some(Message::AddToService)
-                }
-                Key::Named(key::Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
-                Key::Named(key::Named::ArrowDown) => Some(Message::Next(Content::Direct)),
+                Key::Named(Named::Enter) if modifiers.is_empty() => Some(Message::AddToService),
+                Key::Named(Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
+                Key::Named(Named::ArrowDown) => Some(Message::Next(Content::Direct)),
                 _ => None,
             }),
             window::close_events().map(Message::Close),
@@ -163,6 +162,7 @@ impl App {
                 self.service.add(load_song(&self.db, id).ok(), content);
                 Task::none()
             }
+            Message::ServiceAction(saction) => self.service.perform(saction),
             Message::AddToService => {
                 self.service
                     .push_maybe(load_song(&self.db, self.db_select).ok());
@@ -182,22 +182,10 @@ impl App {
                 }
                 Task::none()
             }
-            Message::Previous(content) => {
-                self.service.change(content, Song::set_previous);
-                Task::none()
-            }
-            Message::Next(content) => {
-                self.service.change(content, Song::set_next);
-                Task::none()
-            }
-            Message::NextChorus(content) => {
-                self.service.change(content, Song::set_next_chorus);
-                Task::none()
-            }
-            Message::NextVerse(content) => {
-                self.service.change(content, Song::set_next_verse);
-                Task::none()
-            }
+            Message::Previous(content) => self.service.change(content, Song::set_previous),
+            Message::Next(content) => self.service.change(content, Song::set_next),
+            Message::NextChorus(content) => self.service.change(content, Song::set_next_chorus),
+            Message::NextVerse(content) => self.service.change(content, Song::set_next_verse),
             Message::GoSearch => iced::widget::text_input::focus("search"),
             Message::SearchChanged(search) => {
                 self.db_select = 0;
