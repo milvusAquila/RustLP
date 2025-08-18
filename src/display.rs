@@ -38,7 +38,7 @@ impl Display {
             .cloned()
             .unwrap_or_default();
         let title = song.title(&app.books);
-        let lyrics = song.lyrics.get(song.current);
+        let lyrics = song.get(song.current);
         Self {
             resolution: app.resolution,
             status: app.service.status[content as usize],

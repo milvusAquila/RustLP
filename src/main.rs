@@ -35,7 +35,7 @@ struct App {
     set: settings::Settings,
     db: Connection,
     db_select: u16,
-    sort: Option<db::Sort>,
+    sort: db::Sort,
     index: Vec<(u16, String)>,
     service: Service,
     books: Vec<Book>,
@@ -47,21 +47,21 @@ enum Message {
     WindowOpened(window::Id),
     DisplayResolution(Size),
     Close(window::Id),
+    GoSearch,
+    SearchChanged(String),
+    ExitSearch,
     SortChanged(db::Sort),
     SelectSong(u16),
     OpenSong(u16, Content),
     ServiceAction(SAction),
     AddToService,
-    ChangeCurrent(usize),
+    ChangeCurrentSong(usize),
     ChangeScreen(Status, Content),
     ChangeVerse(Content, usize),
     Previous(Content),
     Next(Content),
     NextChorus(Content),
     NextVerse(Content),
-    GoSearch,
-    SearchChanged(String),
-    ExitSearch,
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -99,7 +99,7 @@ impl App {
                 set: settings,
                 db: db,
                 db_select: 0,
-                sort: Some(db::Sort::default()),
+                sort: db::Sort::default(),
                 index: index,
                 service: Service::new(),
                 books: books,
@@ -108,6 +108,7 @@ impl App {
             Task::batch([
                 control.map(Message::WindowOpened),
                 display.map(Message::WindowOpened),
+                window::get_size(display_id).map(Message::DisplayResolution),
             ]),
         )
     }
@@ -145,13 +146,7 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::WindowOpened(id) => {
-                if id == self.window.display {
-                    window::get_size(id).map(Message::DisplayResolution)
-                } else {
-                    Task::none()
-                }
-            }
+            Message::WindowOpened(_id) => Task::none(),
             Message::DisplayResolution(size) => {
                 self.resolution = size;
                 Task::none()
@@ -171,12 +166,33 @@ impl App {
                         iced::exit(),
                     ])
                 } else {
+                    if let Some(settings) = self.window.settings {
+                        if id == settings {
+                            self.window.settings = None;
+                        }
+                    }
                     Task::none()
                 }
             }
+            Message::GoSearch => iced::widget::text_input::focus("search"),
+            Message::SearchChanged(search) => {
+                self.db_select = 0;
+                self.search = search;
+                self.index = load_index(&self.db, self.sort, &self.search)
+                    .expect("ERROR: Failed to load index");
+                Task::none()
+            }
+            Message::ExitSearch => {
+                if !self.index.is_empty() {
+                    self.db_select = self.index[0].0;
+                }
+                iced::widget::text_input::focus("none")
+            }
             Message::SortChanged(sort) => {
-                self.sort = Some(sort);
-                self.index = load_index(&self.db, self.sort.unwrap(), &self.search).unwrap();
+                self.db_select = 0;
+                self.sort = sort;
+                self.index = load_index(&self.db, self.sort, &self.search)
+                    .expect("ERROR: Failed to load index");
                 Task::none()
             }
             Message::SelectSong(id) => {
@@ -193,7 +209,7 @@ impl App {
                     .push_maybe(load_song(&self.db, self.db_select).ok());
                 Task::none()
             }
-            Message::ChangeCurrent(index) => {
+            Message::ChangeCurrentSong(index) => {
                 self.service.set_current_song(index);
                 Task::none()
             }
@@ -211,32 +227,12 @@ impl App {
             Message::Next(content) => self.service.change(content, Song::set_next),
             Message::NextChorus(content) => self.service.change(content, Song::set_next_chorus),
             Message::NextVerse(content) => self.service.change(content, Song::set_next_verse),
-            Message::GoSearch => iced::widget::text_input::focus("search"),
-            Message::SearchChanged(search) => {
-                self.db_select = 0;
-                self.search = search;
-                self.index = load_index(&self.db, self.sort.unwrap(), &self.search).unwrap();
-                Task::none()
-            }
-            Message::ExitSearch => {
-                if !self.index.is_empty() {
-                    self.db_select = self.index[0].0;
-                }
-                iced::widget::text_input::focus("none")
-            }
             // Settings
             Message::OpenSettings => {
                 if self.window.settings.is_some() {
                     return Task::none();
                 }
-                let (settings_id, settings) = window::open(window::Settings {
-                    maximized: false,
-                    size: Size {
-                        width: 300.0,
-                        height: 400.0,
-                    },
-                    ..Default::default()
-                });
+                let (settings_id, settings) = window::open(window::Settings::default());
                 self.window.settings = Some(settings_id);
                 settings.map(Message::WindowOpened)
             }
@@ -274,19 +270,14 @@ impl App {
     }
 
     fn theme(&self, id: window::Id) -> Theme {
-        if id == self.window.display {
+        if id == self.window.display || self.set.dark_theme {
             Theme::Dark
         } else {
-            if self.set.dark_theme {
-                Theme::Dark
-            } else {
-                Theme::Light
-            }
+            Theme::Light
         }
     }
 }
 
-// Control, Display, Settings
 #[derive(Debug)]
 struct WId {
     control: window::Id,

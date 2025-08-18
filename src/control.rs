@@ -30,7 +30,7 @@ impl App {
     pub fn view_control(&self) -> Element<'_, Message> {
         let index = column![
             ttext("Library", self),
-            pick_list(Sort::ALL, self.sort, Message::SortChanged)
+            pick_list(Sort::ALL, Some(self.sort), Message::SortChanged)
                 .text_size(self.set.font_size)
                 .style(style::theme_pick_list)
                 .width(Length::FillPortion(18))
@@ -77,7 +77,7 @@ impl App {
     }
 
     fn view_index(&self) -> Result<Column<'_, Message>> {
-        let mut index = column![];
+        let mut index = Column::with_capacity(2000);
         for (id, title) in &self.index {
             index = index.push(
                 mouse_area(
@@ -153,12 +153,12 @@ impl App {
             button(icon('\u{0e802}')).on_press(Message::ServiceAction(SAction::Open)),
             button(icon('\u{0e803}')).on_press(Message::ServiceAction(SAction::Save)),
         ];
-        let mut titles = column![];
+        let mut titles = Column::with_capacity(10);
         let current = self.service.current_song_index().unwrap_or(0);
         for song in self.service.clone().into_iter().enumerate() {
             titles = titles.push(
                 button(ttext(song.1.title(&self.books), self))
-                    .on_double_click(Message::ChangeCurrent(song.0))
+                    .on_double_click(Message::ChangeCurrentSong(song.0))
                     .width(Length::Fill)
                     .style(if song.0 == current {
                         style::border_secondary

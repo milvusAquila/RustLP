@@ -1,6 +1,6 @@
 use iced::Task;
 use rusqlite::{Connection, Result};
-use std::{cmp::Ordering, env};
+use std::cmp::Ordering;
 
 use crate::{
     Message,
@@ -11,7 +11,7 @@ use crate::{
 pub fn connect_db() -> Result<Connection> {
     let db = Connection::open(format!(
         "{}/Documents/songs.sqlite",
-        env::var("HOME").unwrap_or(String::new())
+        std::env::var("HOME").unwrap_or(String::new())
     ))?;
     db.execute_batch(
         "CREATE TABLE IF NOT EXISTS songs (
@@ -182,6 +182,12 @@ impl Service {
         }
     }
 
+    pub fn renew(&mut self) {
+        self.list = Vec::with_capacity(10);
+        self.current = 0;
+        self.status[1] = Status::default();
+    }
+
     pub fn add(&mut self, song: Option<Song>, content: Content) {
         match content {
             Content::Preview => self.preview = song,
@@ -244,11 +250,7 @@ impl Service {
 
     pub fn perform(&mut self, saction: SAction) -> Task<Message> {
         match saction {
-            SAction::New => {
-                self.list = Vec::with_capacity(10);
-                self.current = 0;
-                self.status[1] = Status::default();
-            }
+            SAction::New => self.renew(),
             // OpenLP service files are zip files what contains a service_data.osj file (in json)
             SAction::Open => todo!(),
             SAction::Save => todo!(),
@@ -261,17 +263,6 @@ impl Service {
     Compress-Archive file1 file2 archive.zip
     Expand-Archive archive.zip target
      */
-}
-
-impl From<Vec<Song>> for Service {
-    fn from(value: Vec<Song>) -> Self {
-        Self {
-            list: value,
-            current: 0,
-            preview: None,
-            status: [Status::default(), Status::default()],
-        }
-    }
 }
 
 impl IntoIterator for Service {
@@ -297,7 +288,7 @@ mod test {
         let db = connect_db().unwrap();
         let books = load_songbooks(&db).unwrap();
         let mut query = db.prepare(Sort::QUERYS[0]).unwrap();
-        let mut iterator = query.query([]).unwrap();
+        let mut iterator = query.query([""]).unwrap();
         let mut j = 0;
         while let Ok(Some(i)) = iterator.next() {
             let id = i.get(0).unwrap();

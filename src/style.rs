@@ -23,6 +23,10 @@ pub fn theme_pick_list(theme: &Theme, status: pick_list::Status) -> pick_list::S
     }
 }
 
+fn soft(theme: &Theme) -> Color {
+    theme.extended_palette().secondary.base.color
+}
+
 pub fn border_secondary(theme: &Theme, status: button::Status) -> button::Style {
     button::Style {
         border: border::width(1).color(soft(theme)),
@@ -42,10 +46,6 @@ pub fn border_text(theme: &Theme, status: button::Status) -> button::Style {
             },
         )
     }
-}
-
-pub fn soft(theme: &Theme) -> Color {
-    theme.extended_palette().secondary.base.color
 }
 
 pub fn soft_text(theme: &Theme) -> widget::text::Style {
