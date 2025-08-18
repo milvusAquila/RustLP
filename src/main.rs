@@ -17,6 +17,8 @@ mod song;
 mod style;
 mod widget;
 
+const NAME: &str = "RustLP";
+
 fn main() -> iced::Result {
     iced::daemon(App::new, App::update, App::view)
         .title(App::title)
@@ -28,8 +30,7 @@ fn main() -> iced::Result {
 
 #[derive(Debug)]
 struct App {
-    control: window::Id,
-    display: window::Id,
+    window: WId,
     resolution: Size,
     set: settings::Settings,
     db: Connection,
@@ -44,6 +45,7 @@ struct App {
 #[derive(Debug, Clone)]
 enum Message {
     WindowOpened(window::Id),
+    DisplayResolution(Size),
     Close(window::Id),
     SortChanged(db::Sort),
     SelectSong(u16),
@@ -81,16 +83,20 @@ impl App {
             exit_on_close_request: false,
             ..Default::default()
         });
+        let settings = confy::load(NAME, None).expect("ERROR: Failed to load settings");
         let db = db::connect_db().expect("ERROR: Failed to connect database");
         let books = db::load_songbooks(&db).expect("ERROR: Failed to load books");
         let index = load_index(&db, db::Sort::default(), &String::new())
             .expect("ERROR: Failed to load index");
         (
             Self {
-                control: control_id,
-                display: display_id,
-                resolution: Size::new(1920.0, 1080.0),
-                set: settings::Settings::default(),
+                window: WId {
+                    control: control_id,
+                    display: display_id,
+                    settings: None,
+                },
+                resolution: Size::new(1920.0, 1080.0), // Tempopary value
+                set: settings,
                 db: db,
                 db_select: 0,
                 sort: Some(db::Sort::default()),
@@ -107,25 +113,31 @@ impl App {
     }
 
     fn title(&self, _id: window::Id) -> String {
-        String::from("RustLP")
+        String::from(NAME)
     }
 
     fn subscription(&self) -> iced::Subscription<Message> {
         use iced::keyboard::{Key, key::Named, on_key_press};
         iced::Subscription::batch([
-            on_key_press(|key, modifiers| match key.as_ref() {
-                Key::Character(",") if modifiers.command() => Some(Message::OpenSettings),
-                Key::Character("f") if modifiers.command() => Some(Message::GoSearch),
-                Key::Character("c") if modifiers.is_empty() => {
-                    Some(Message::NextChorus(Content::Direct))
+            on_key_press(|key, modifiers| {
+                if modifiers.is_empty() {
+                    match key.as_ref() {
+                        Key::Character("c") => Some(Message::NextChorus(Content::Direct)),
+                        Key::Character("v") => Some(Message::NextVerse(Content::Direct)),
+                        Key::Named(Named::Enter) => Some(Message::AddToService),
+                        Key::Named(Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
+                        Key::Named(Named::ArrowDown) => Some(Message::Next(Content::Direct)),
+                        _ => None,
+                    }
+                } else if modifiers.command() {
+                    match key.as_ref() {
+                        Key::Character(",") => Some(Message::OpenSettings),
+                        Key::Character("f") => Some(Message::GoSearch),
+                        _ => None,
+                    }
+                } else {
+                    None
                 }
-                Key::Character("v") if modifiers.is_empty() => {
-                    Some(Message::NextVerse(Content::Direct))
-                }
-                Key::Named(Named::Enter) if modifiers.is_empty() => Some(Message::AddToService),
-                Key::Named(Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
-                Key::Named(Named::ArrowDown) => Some(Message::Next(Content::Direct)),
-                _ => None,
             }),
             window::close_events().map(Message::Close),
         ])
@@ -133,16 +145,29 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::WindowOpened(_id) => Task::none(),
+            Message::WindowOpened(id) => {
+                if id == self.window.display {
+                    window::get_size(id).map(Message::DisplayResolution)
+                } else {
+                    Task::none()
+                }
+            }
+            Message::DisplayResolution(size) => {
+                self.resolution = size;
+                Task::none()
+            }
             Message::Close(id) => {
-                if id == self.control {
+                if id == self.window.control {
+                    confy::store(NAME, None, self.set.clone())
+                        .is_err()
+                        .then(|| println!("ERROR: Failed to save settings"));
                     Task::batch([
-                        if let Some(settings) = self.set.window {
+                        if let Some(settings) = self.window.settings {
                             window::close(settings)
                         } else {
                             Task::none()
                         },
-                        window::close(self.display),
+                        window::close(self.window.display),
                         iced::exit(),
                     ])
                 } else {
@@ -201,6 +226,9 @@ impl App {
             }
             // Settings
             Message::OpenSettings => {
+                if self.window.settings.is_some() {
+                    return Task::none();
+                }
                 let (settings_id, settings) = window::open(window::Settings {
                     maximized: false,
                     size: Size {
@@ -209,7 +237,7 @@ impl App {
                     },
                     ..Default::default()
                 });
-                self.set.window = Some(settings_id);
+                self.window.settings = Some(settings_id);
                 settings.map(Message::WindowOpened)
             }
             Message::SpacingChanged(size) => {
@@ -232,9 +260,9 @@ impl App {
     }
 
     fn view(&self, id: window::Id) -> Element<'_, Message> {
-        let mut screen = if id == self.control {
+        let mut screen = if id == self.window.control {
             self.view_control()
-        } else if Some(id) == self.set.window {
+        } else if Some(id) == self.window.settings {
             self.view_settings()
         } else {
             self.view_display(Content::Direct)
@@ -246,7 +274,7 @@ impl App {
     }
 
     fn theme(&self, id: window::Id) -> Theme {
-        if id == self.display {
+        if id == self.window.display {
             Theme::Dark
         } else {
             if self.set.dark_theme {
@@ -256,4 +284,12 @@ impl App {
             }
         }
     }
+}
+
+// Control, Display, Settings
+#[derive(Debug)]
+struct WId {
+    control: window::Id,
+    display: window::Id,
+    settings: Option<window::Id>,
 }

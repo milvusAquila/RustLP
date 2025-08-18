@@ -6,9 +6,11 @@ edition = "2024"
 [dependencies]
 # iced = { git = "https://github.com/iced-rs/iced", features = ["image", "advanced"] }
 iced = { path = "../cloned/iced", features = ["image", "advanced"] }
-rusqlite = {version = "0.36.0", features = ["collation"]}
+rusqlite = { version = "0.36.0", features = ["collation"] }
 quick-xml = "0.38.1"
 unidecode = "0.3.0"
+confy = "1.0.0"
+serde = { version = "1.0.219", features = ["derive"] }
 
 [profile.dev]
 opt-level = 1

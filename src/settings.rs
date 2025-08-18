@@ -1,23 +1,22 @@
 use iced::{
     Element,
     widget::{column, slider, toggler},
-    window,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{App, Message, widget::ttext};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
-    pub window: Option<window::Id>,
     pub font_size: f32,
     pub spacing: f32,
     pub debug_layout: bool,
     pub dark_theme: bool,
 }
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            window: None,
             font_size: 16.0,
             spacing: 2.0,
             debug_layout: false,
