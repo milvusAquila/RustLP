@@ -2,8 +2,8 @@ use iced::{
     Alignment, Element, Font, Length, Theme,
     alignment::Vertical,
     widget::{
-        Column, Container, button, column, container, horizontal_rule, horizontal_space,
-        mouse_area, pick_list, row, scrollable, text_input, vertical_rule, vertical_space,
+        Column, Container, button, column, container, mouse_area, pick_list, row, rule, scrollable,
+        space, text_input,
     },
 };
 use rusqlite::Result;
@@ -54,9 +54,9 @@ impl App {
             .width(Length::FillPortion(32));
         let service = column![
             self.view_service(),
-            vertical_space(),
+            space::vertical(),
             row![
-                horizontal_space(),
+                space::horizontal(),
                 button(icon('\u{0e800}')).on_press(Message::OpenSettings)
             ],
         ]
@@ -64,11 +64,11 @@ impl App {
 
         row![
             index,
-            vertical_rule(2),
+            rule::vertical(2),
             preview,
-            vertical_rule(2),
+            rule::vertical(2),
             direct,
-            vertical_rule(2),
+            rule::vertical(2),
             service
         ]
         .spacing(self.set.spacing)
@@ -101,15 +101,15 @@ impl App {
         let Some(song) = &self.service.current_song(content) else {
             return container(ttext("No song selected", self).width(Length::Fill).center());
         };
-        let mut lyrics = column![horizontal_rule(1).style(style::soft_rule)];
+        let mut lyrics = column![rule::horizontal(1).style(style::soft_rule)];
         for (index, verse) in song.lyrics.clone().into_iter().enumerate() {
             lyrics = lyrics
                 .push(
                     row![
-                        vertical_rule(1).style(style::soft_rule),
+                        rule::vertical(1).style(style::soft_rule),
                         // Verse id
                         ttext(format!("{}", verse.0), self).style(style::soft_text),
-                        vertical_rule(1).style(style::soft_rule),
+                        rule::vertical(1).style(style::soft_rule),
                         // Lyrics
                         button(ttext(verse.1, self))
                             .on_press(Message::ChangeVerse(content, index))
@@ -119,12 +119,12 @@ impl App {
                             } else {
                                 button::text
                             }),
-                        vertical_rule(1).style(style::soft_rule),
+                        rule::vertical(1).style(style::soft_rule),
                     ]
                     .height(Length::Shrink)
                     .align_y(Vertical::Center),
                 )
-                .push(horizontal_rule(1).style(style::soft_rule));
+                .push(rule::horizontal(1).style(style::soft_rule));
         }
         let options = row![
             button(icon('\u{0e804}')).on_press(Message::ChangeScreen(Status::DarkScreen, content)),
@@ -138,9 +138,9 @@ impl App {
                     .align_x(Alignment::Center)
                     .width(Length::Fill),
                 scrollable(lyrics).width(Length::Fill).height(Length::Fill),
-                horizontal_rule(2),
+                rule::horizontal(2),
                 options,
-                horizontal_rule(2),
+                rule::horizontal(2),
                 self.view_display(content),
             ]
             .spacing(self.set.spacing),

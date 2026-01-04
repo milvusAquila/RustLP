@@ -1,11 +1,7 @@
+use bytes::Bytes;
 use iced::{
     Background, Color, Element, Font, Length, Size, Theme, Vector,
-    advanced::{
-        Layout, Text, Widget,
-        image::{Bytes, Handle},
-        layout, renderer,
-        widget::Tree,
-    },
+    advanced::{Layout, Text, Widget, image::Handle, layout, renderer, widget::Tree},
     alignment::Vertical,
     mouse,
     widget::{container, image, text},
@@ -64,7 +60,7 @@ where
     }
 
     fn layout(
-        &self,
+        &mut self,
         _tree: &mut Tree,
         _renderer: &Renderer,
         limits: &layout::Limits,
@@ -110,8 +106,9 @@ where
                 image::draw(
                     renderer,
                     layout,
-                    viewport,
                     &self.image,
+                    None,
+                    iced::border::radius(0),
                     iced::ContentFit::Contain,
                     image::FilterMethod::Linear,
                     iced::Rotation::default(),
@@ -132,6 +129,7 @@ where
                         align_y: Vertical::Bottom,
                         shaping: text::Shaping::default(),
                         wrapping: text::Wrapping::default(),
+                        hint_factor: None,
                     },
                     iced::Point {
                         x: layout.position().x,
@@ -150,6 +148,7 @@ where
                     align_y: Vertical::Center,
                     shaping: text::Shaping::default(),
                     wrapping: text::Wrapping::default(),
+                    hint_factor: None,
                 };
                 // Stroke
                 renderer.with_translation(Vector::new(-0.5, -0.5), |renderer| {

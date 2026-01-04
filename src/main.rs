@@ -108,7 +108,7 @@ impl App {
             Task::batch([
                 control.map(Message::WindowOpened),
                 display.map(Message::WindowOpened),
-                window::get_size(display_id).map(Message::DisplayResolution),
+                window::size(display_id).map(Message::DisplayResolution),
             ]),
         )
     }
@@ -118,27 +118,30 @@ impl App {
     }
 
     fn subscription(&self) -> iced::Subscription<Message> {
-        use iced::keyboard::{Key, key::Named, on_key_press};
+        use iced::keyboard::{Event, Key, key::Named, listen};
         iced::Subscription::batch([
-            on_key_press(|key, modifiers| {
-                if modifiers.is_empty() {
-                    match key.as_ref() {
-                        Key::Character("c") => Some(Message::NextChorus(Content::Direct)),
-                        Key::Character("v") => Some(Message::NextVerse(Content::Direct)),
-                        Key::Named(Named::Enter) => Some(Message::AddToService),
-                        Key::Named(Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
-                        Key::Named(Named::ArrowDown) => Some(Message::Next(Content::Direct)),
-                        _ => None,
+            listen().filter_map(|event| match event {
+                Event::KeyPressed { key, modifiers, .. } => {
+                    if modifiers.is_empty() {
+                        match key.as_ref() {
+                            Key::Character("c") => Some(Message::NextChorus(Content::Direct)),
+                            Key::Character("v") => Some(Message::NextVerse(Content::Direct)),
+                            Key::Named(Named::Enter) => Some(Message::AddToService),
+                            Key::Named(Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
+                            Key::Named(Named::ArrowDown) => Some(Message::Next(Content::Direct)),
+                            _ => None,
+                        }
+                    } else if modifiers.command() {
+                        match key.as_ref() {
+                            Key::Character(",") => Some(Message::OpenSettings),
+                            Key::Character("f") => Some(Message::GoSearch),
+                            _ => None,
+                        }
+                    } else {
+                        None
                     }
-                } else if modifiers.command() {
-                    match key.as_ref() {
-                        Key::Character(",") => Some(Message::OpenSettings),
-                        Key::Character("f") => Some(Message::GoSearch),
-                        _ => None,
-                    }
-                } else {
-                    None
                 }
+                _ => None,
             }),
             window::close_events().map(Message::Close),
         ])
@@ -174,7 +177,7 @@ impl App {
                     Task::none()
                 }
             }
-            Message::GoSearch => iced::widget::text_input::focus("search"),
+            Message::GoSearch => iced::widget::operation::focus("search"),
             Message::SearchChanged(search) => {
                 self.db_select = 0;
                 self.search = search;
@@ -186,7 +189,7 @@ impl App {
                 if !self.index.is_empty() {
                     self.db_select = self.index[0].0;
                 }
-                iced::widget::text_input::focus("none")
+                iced::widget::operation::focus("none")
             }
             Message::SortChanged(sort) => {
                 self.db_select = 0;
