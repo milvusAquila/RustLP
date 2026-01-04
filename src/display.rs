@@ -109,7 +109,7 @@ where
                     &self.image,
                     None,
                     iced::border::radius(0),
-                    iced::ContentFit::Contain,
+                    iced::ContentFit::Cover,
                     image::FilterMethod::Linear,
                     iced::Rotation::default(),
                     1.0,
