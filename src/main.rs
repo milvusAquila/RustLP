@@ -4,7 +4,7 @@ use iced::{Element, Size, Task, Theme, widget::container, window};
 use rusqlite::Connection;
 
 use crate::{
-    control::Content,
+    control::{Content, Library},
     db::{SAction, Service, Status, load_index, load_song},
     song::{Book, Song},
 };
@@ -35,6 +35,7 @@ struct App {
     set: settings::Settings,
     db: Connection,
     db_select: u16,
+    library: Library,
     sort: db::Sort,
     index: Vec<(u16, String)>,
     service: Service,
@@ -50,6 +51,7 @@ enum Message {
     GoSearch,
     SearchChanged(String),
     ExitSearch,
+    LibraryChanged(Library),
     SortChanged(db::Sort),
     SelectSong(u16),
     OpenSong(u16, Content),
@@ -99,6 +101,7 @@ impl App {
                 set: settings,
                 db: db,
                 db_select: 0,
+                library: Library::default(),
                 sort: db::Sort::default(),
                 index: index,
                 service: Service::new(),
@@ -190,6 +193,10 @@ impl App {
                     self.db_select = self.index[0].0;
                 }
                 iced::widget::operation::focus("none")
+            }
+            Message::LibraryChanged(lib) => {
+                self.library = lib;
+                Task::none()
             }
             Message::SortChanged(sort) => {
                 self.db_select = 0;

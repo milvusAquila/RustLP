@@ -1,18 +1,18 @@
 use iced::{
-    Alignment, Element, Font, Length, Theme,
     alignment::Vertical,
     widget::{
-        Column, Container, button, column, container, mouse_area, pick_list, row, rule, scrollable,
-        space, text_input,
+        button, column, container, mouse_area, pick_list, row, rule, scrollable, space, text_input,
+        Column, Container,
     },
+    Alignment, Element, Font, Length, Theme,
 };
 use rusqlite::Result;
 
 use crate::{
-    App, Message,
     db::{SAction, Sort, Status},
     style,
-    widget::{BOLD, ttext},
+    widget::{ttext, BOLD},
+    App, Message,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,19 +29,16 @@ fn icon<'a>(codepoint: char) -> Element<'a, Message> {
 impl App {
     pub fn view_control(&self) -> Element<'_, Message> {
         let index = column![
-            ttext("Library", self),
-            pick_list(Sort::ALL, Some(self.sort), Message::SortChanged)
+            pick_list(Library::ALL, Some(self.library), Message::LibraryChanged)
                 .text_size(self.set.font_size)
                 .style(style::theme_pick_list)
                 .width(Length::FillPortion(18))
                 .padding(self.set.spacing),
-            text_input("Search", &self.search)
-                .id("search")
-                .on_input(Message::SearchChanged)
-                .on_submit(Message::ExitSearch),
-            scrollable(self.view_index().expect("ERROR: Failed to load index"))
-                .width(Length::FillPortion(18))
-                .height(Length::Fill),
+            space::horizontal().height(5.),
+            match self.library {
+                Library::Songs => self.view_song_index().expect("ERROR: Failed to load index"),
+                Library::Documents => column![],
+            },
         ]
         .spacing(self.set.spacing);
         let preview = self
@@ -76,8 +73,20 @@ impl App {
         .into()
     }
 
-    fn view_index(&self) -> Result<Column<'_, Message>> {
-        let mut index = Column::with_capacity(2000);
+    fn view_song_index(&self) -> Result<Column<'_, Message>> {
+        let header = column![
+            pick_list(Sort::ALL, Some(self.sort), Message::SortChanged)
+                .text_size(self.set.font_size)
+                .style(style::theme_pick_list)
+                .width(Length::FillPortion(18))
+                .padding(self.set.spacing),
+            text_input("Search", &self.search)
+                .id("search")
+                .on_input(Message::SearchChanged)
+                .on_submit(Message::ExitSearch),
+        ]
+        .spacing(self.set.spacing);
+        let mut index = Column::with_capacity(self.index.len());
         for (id, title) in &self.index {
             index = index.push(
                 mouse_area(
@@ -94,7 +103,11 @@ impl App {
                 .on_middle_press(Message::OpenSong(*id, Content::Direct)),
             );
         }
-        Ok(index)
+        Ok(header.push(
+            scrollable(index)
+                .width(Length::FillPortion(18))
+                .height(Length::Fill),
+        ))
     }
 
     fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
@@ -168,5 +181,22 @@ impl App {
             );
         }
         container(column![control, titles])
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Library {
+    #[default]
+    Songs = 0,
+    Documents = 1,
+}
+
+impl Library {
+    pub const ALL: [Self; 2] = [Self::Songs, Self::Documents];
+}
+
+impl std::fmt::Display for Library {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }

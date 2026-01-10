@@ -12,6 +12,7 @@ unidecode = "0.3.0"
 confy = "1.0.0"
 serde = { version = "1.0.228", features = ["derive"] }
 bytes = "1.11.0"
+pdfium-render = "0.8.37"
 
 [profile.dev]
 opt-level = 1
