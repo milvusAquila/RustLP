@@ -1,19 +1,24 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use etcetera::BaseStrategy;
 use iced::{Element, Size, Task, Theme, widget::container, window};
-use rusqlite::Connection;
+use pdfium_render::prelude::Pdfium;
 
 use crate::{
-    control::{Content, Library},
-    db::{SAction, Service, Status, load_index, load_song},
-    song::{Book, Song},
+    content::{
+        Content, db,
+        panel::{Panel, Panels, Status},
+    },
+    library::{LibDoc, LibSong, Library, LibraryPage, Sort},
+    service::{Action, Service},
 };
 
+mod content;
 mod control;
-mod db;
 mod display;
+mod library;
+mod service;
 mod settings;
-mod song;
 mod style;
 mod widget;
 
@@ -33,14 +38,9 @@ struct App {
     window: WId,
     resolution: Size,
     set: settings::Settings,
-    db: Connection,
-    db_select: u16,
     library: Library,
-    sort: db::Sort,
-    index: Vec<(u16, String)>,
     service: Service,
-    books: Vec<Book>,
-    search: String,
+    panels: [Panel; 2],
 }
 
 #[derive(Debug, Clone)]
@@ -51,19 +51,19 @@ enum Message {
     GoSearch,
     SearchChanged(String),
     ExitSearch,
-    LibraryChanged(Library),
-    SortChanged(db::Sort),
+    LibraryPageChanged(LibraryPage),
+    SortChanged(Sort),
     SelectSong(u16),
-    OpenSong(u16, Content),
-    ServiceAction(SAction),
+    OpenSong(u16, Panels),
+    ServiceAction(Action),
     AddToService,
-    ChangeCurrentSong(usize),
-    ChangeScreen(Status, Content),
-    ChangeVerse(Content, usize),
-    Previous(Content),
-    Next(Content),
-    NextChorus(Content),
-    NextVerse(Content),
+    ServiceChangeContent(usize),
+    ChangeScreenStatus(Panels, Status),
+    ChangeIndex(Panels, usize),
+    Previous(Panels),
+    Next(Panels),
+    NextChorus(Panels),
+    NextVerse(Panels),
     // Settings
     OpenSettings,
     SpacingChanged(f32),
@@ -88,8 +88,25 @@ impl App {
         let settings = confy::load(NAME, None).expect("ERROR: Failed to load settings");
         let db = db::connect_db().expect("ERROR: Failed to connect database");
         let books = db::load_songbooks(&db).expect("ERROR: Failed to load books");
-        let index = load_index(&db, db::Sort::default(), &String::new())
+        let index = db::load_index(&db, Sort::default(), &String::new())
             .expect("ERROR: Failed to load index");
+
+        let libdoc = LibDoc {
+            index: vec![],
+            current: 0,
+            pdfium: Pdfium::default(),
+            cache_path: {
+                let mut path = etcetera::base_strategy::choose_native_strategy()
+                    .expect("ERROR: Can't get cache path")
+                    .cache_dir();
+                path.push(NAME);
+                match std::fs::exists(&path) {
+                    Ok(true) => (),
+                    _ => std::fs::create_dir(&path).expect("ERROR: Can't create cache directory"),
+                }
+                path
+            },
+        };
         (
             Self {
                 window: WId {
@@ -99,14 +116,20 @@ impl App {
                 },
                 resolution: Size::new(1920.0, 1080.0), // Tempopary value
                 set: settings,
-                db: db,
-                db_select: 0,
-                library: Library::default(),
-                sort: db::Sort::default(),
-                index: index,
+                library: Library {
+                    page: LibraryPage::default(),
+                    songs: LibSong {
+                        db: db,
+                        db_select: 0,
+                        sort: Sort::default(),
+                        index: index,
+                        books: books,
+                        search: String::new(),
+                    },
+                    docs: libdoc,
+                },
                 service: Service::new(),
-                books: books,
-                search: String::new(),
+                panels: [Panel::default(), Panel::default()],
             },
             Task::batch([
                 control.map(Message::WindowOpened),
@@ -127,11 +150,11 @@ impl App {
                 Event::KeyPressed { key, modifiers, .. } => {
                     if modifiers.is_empty() {
                         match key.as_ref() {
-                            Key::Character("c") => Some(Message::NextChorus(Content::Direct)),
-                            Key::Character("v") => Some(Message::NextVerse(Content::Direct)),
+                            Key::Character("c") => Some(Message::NextChorus(Panels::Direct)),
+                            Key::Character("v") => Some(Message::NextVerse(Panels::Direct)),
                             Key::Named(Named::Enter) => Some(Message::AddToService),
-                            Key::Named(Named::ArrowUp) => Some(Message::Previous(Content::Direct)),
-                            Key::Named(Named::ArrowDown) => Some(Message::Next(Content::Direct)),
+                            Key::Named(Named::ArrowUp) => Some(Message::Previous(Panels::Direct)),
+                            Key::Named(Named::ArrowDown) => Some(Message::Next(Panels::Direct)),
                             _ => None,
                         }
                     } else if modifiers.command() {
@@ -151,6 +174,7 @@ impl App {
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
+        let songs = &mut self.library.songs;
         match message {
             Message::WindowOpened(_id) => Task::none(),
             Message::DisplayResolution(size) => {
@@ -182,61 +206,64 @@ impl App {
             }
             Message::GoSearch => iced::widget::operation::focus("search"),
             Message::SearchChanged(search) => {
-                self.db_select = 0;
-                self.search = search;
-                self.index = load_index(&self.db, self.sort, &self.search)
+                songs.db_select = 0;
+                songs.search = search;
+                songs.index = db::load_index(&songs.db, songs.sort, &songs.search)
                     .expect("ERROR: Failed to load index");
                 Task::none()
             }
             Message::ExitSearch => {
-                if !self.index.is_empty() {
-                    self.db_select = self.index[0].0;
+                if !songs.index.is_empty() {
+                    songs.db_select = songs.index[0].0;
                 }
                 iced::widget::operation::focus("none")
             }
-            Message::LibraryChanged(lib) => {
-                self.library = lib;
+            Message::LibraryPageChanged(lib) => {
+                self.library.page = lib;
                 Task::none()
             }
             Message::SortChanged(sort) => {
-                self.db_select = 0;
-                self.sort = sort;
-                self.index = load_index(&self.db, self.sort, &self.search)
+                songs.db_select = 0;
+                songs.sort = sort;
+                songs.index = db::load_index(&songs.db, songs.sort, &songs.search)
                     .expect("ERROR: Failed to load index");
                 Task::none()
             }
             Message::SelectSong(id) => {
-                self.db_select = id;
+                songs.db_select = id;
                 Task::none()
             }
-            Message::OpenSong(id, content) => {
-                self.service.add(load_song(&self.db, id).ok(), content);
-                Task::none()
-            }
-            Message::ServiceAction(saction) => self.service.perform(saction),
-            Message::AddToService => {
-                self.service
-                    .push_maybe(load_song(&self.db, self.db_select).ok());
-                Task::none()
-            }
-            Message::ChangeCurrentSong(index) => {
-                self.service.set_current_song(index);
-                Task::none()
-            }
-            Message::ChangeScreen(status, content) => {
-                self.service.status[content as usize] = status;
-                Task::none()
-            }
-            Message::ChangeVerse(content, verse) => {
-                if let Some(song) = &mut self.service.current_song_mut(content) {
-                    song.set_current(verse);
+            Message::OpenSong(id, panels) => {
+                if let Some(song) = db::load_song(&songs.db, id).ok() {
+                    self.panels[panels as usize].change_content(Content::Song(song));
                 }
                 Task::none()
             }
-            Message::Previous(content) => self.service.change(content, Song::set_previous),
-            Message::Next(content) => self.service.change(content, Song::set_next),
-            Message::NextChorus(content) => self.service.change(content, Song::set_next_chorus),
-            Message::NextVerse(content) => self.service.change(content, Song::set_next_verse),
+            Message::ServiceAction(action) => self.service.perform(action),
+            Message::AddToService => {
+                if let Some(song) = db::load_song(&songs.db, songs.db_select).ok() {
+                    self.service.add(Content::Song(song));
+                }
+                Task::none()
+            }
+            Message::ServiceChangeContent(index) => {
+                self.service.set_current(index);
+                Task::none()
+            }
+            Message::ChangeScreenStatus(panels, status) => {
+                self.panels[panels as usize].set_status(status);
+                Task::none()
+            }
+            Message::ChangeIndex(panels, current) => {
+                self.panels[panels as usize].set_current(current);
+                Task::none()
+            }
+            Message::Previous(panels) => self.panels[panels as usize].set(Content::set_previous),
+            Message::Next(panels) => self.panels[panels as usize].set(Content::set_next),
+            Message::NextChorus(panels) => {
+                self.panels[panels as usize].set(Content::set_next_chorus)
+            }
+            Message::NextVerse(panels) => self.panels[panels as usize].set(Content::set_next_verse),
             // Settings
             Message::OpenSettings => {
                 if self.window.settings.is_some() {
@@ -271,7 +298,7 @@ impl App {
         } else if Some(id) == self.window.settings {
             self.view_settings()
         } else {
-            self.view_display(Content::Direct)
+            self.view_display(Panels::Direct)
         };
         if self.set.debug_layout {
             screen = screen.explain(iced::Color::WHITE);

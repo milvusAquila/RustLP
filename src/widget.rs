@@ -1,5 +1,5 @@
-use crate::App;
-use iced::{Font, Theme, alignment::Vertical, widget::text};
+use crate::{App, Message};
+use iced::{Element, Font, Theme, alignment::Vertical, widget::text};
 
 pub fn ttext<'a>(
     text: impl text::IntoFragment<'a>,
@@ -14,3 +14,8 @@ pub const BOLD: Font = Font {
     weight: iced::font::Weight::Bold,
     ..Font::DEFAULT
 };
+
+pub fn icon<'a>(codepoint: char) -> Element<'a, Message> {
+    const ICON_FONT: Font = Font::with_name("icons");
+    iced::widget::text(codepoint).font(ICON_FONT).into()
+}

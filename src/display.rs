@@ -1,19 +1,27 @@
 use bytes::Bytes;
 use iced::{
-    Background, Color, Element, Font, Length, Size, Theme, Vector,
-    advanced::{Layout, Text, Widget, image::Handle, layout, renderer, widget::Tree},
+    advanced::{image::Handle, layout, renderer, widget::Tree, Layout, Text, Widget},
     alignment::Vertical,
     mouse,
     widget::{container, image, text},
+    Background, Color, Element, Font, Length, Size, Theme, Vector,
 };
 
-use crate::{App, Message, control::Content, db::Status, widget::BOLD};
+use crate::{
+    content::{
+        panel::{Panels, Status},
+        song::Song,
+        Content,
+    },
+    widget::BOLD,
+    App, Message,
+};
 
 const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross.jpg");
 
 impl App {
-    pub fn view_display(&self, content: Content) -> Element<'_, Message> {
-        Display::new(self, content).into()
+    pub fn view_display(&self, panels: Panels) -> Element<'_, Message> {
+        Display::new(self, panels).into()
     }
 }
 
@@ -27,17 +35,16 @@ struct Display {
 }
 
 impl Display {
-    fn new(app: &App, content: Content) -> Self {
-        let song = &app
-            .service
-            .current_song(content)
-            .cloned()
-            .unwrap_or_default();
-        let title = song.title(&app.books);
+    fn new(app: &App, panels: Panels) -> Self {
+        let song = match &app.panels[panels as usize].content {
+            Content::Song(song) => song,
+            _ => &Song::default(),
+        };
+        let title = song.title(&app.library.songs.books);
         let lyrics = song.get(song.current);
         Self {
             resolution: app.resolution,
-            status: app.service.status[content as usize],
+            status: app.panels[panels as usize].get_status(),
             title: title,
             lyrics: lyrics,
             font_size: 40.0,
@@ -101,7 +108,7 @@ where
                     bounds,
                 );
             }
-            Status::Song => {
+            Status::Content => {
                 // Background
                 image::draw(
                     renderer,
@@ -160,6 +167,20 @@ where
                 // Lyrics
                 renderer.fill_text(lyrics, bounds.center(), Color::WHITE, *viewport);
             }
+            // let img = page.render_with_config(&render_config).unwrap().as_image();
+            // let size = img.dimensions();
+            // image::draw(
+            //     renderer,
+            //     layout,
+            //     &image::Handle::from_bytes(img.as_bytes()),
+            //     None,
+            //     iced::border::radius(0),
+            //     iced::ContentFit::Cover,
+            //     image::FilterMethod::Linear,
+            //     iced::Rotation::default(),
+            //     1.0,
+            //     1.0,
+            // );
         }
     }
 }

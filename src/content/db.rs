@@ -1,11 +1,9 @@
-use iced::Task;
 use rusqlite::{Connection, Result};
 use std::cmp::Ordering;
 
 use crate::{
-    Message,
-    control::Content,
-    song::{Book, Song},
+    content::song::{Book, Song},
+    library::Sort,
 };
 
 pub fn connect_db() -> Result<Connection> {
@@ -72,7 +70,8 @@ pub fn load_index(db: &Connection, sort: Sort, search: &String) -> Result<Vec<(u
                 Sort::Default => format!(
                     "{}{}",
                     if let Ok(book) = i.get::<_, String>(1) {
-                        format!("{} {:03}  ", book, i.get::<_, u16>(2).unwrap_or(0)) // Songbook Number
+                        format!("{} {:03}  ", book, i.get::<_, u16>(2).unwrap_or(0))
+                    // Songbook Number
                     } else {
                         String::new()
                     },
@@ -108,17 +107,7 @@ pub fn load_song(db: &Connection, id: u16) -> Result<Song> {
     query.query_one([id], |row| row.try_into())
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum Sort {
-    #[default]
-    Default = 0,
-    Title = 1,
-    Songbook = 2,
-    Author = 3,
-}
-
 impl Sort {
-    pub const ALL: [Sort; 4] = [Sort::Default, Sort::Title, Sort::Songbook, Sort::Author];
     pub const QUERYS: [&str; 4] = [
         "SELECT s.id, b.name, s.number, s.title
             FROM songs s
@@ -148,136 +137,6 @@ impl Sort {
             WHERE a.name = ?1 COLLATE NOACCENTS
             ORDER BY a.name,s.title;",
     ];
-}
-
-impl std::fmt::Display for Sort {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
-pub enum Status {
-    #[default]
-    DarkScreen,
-    WhiteScreen,
-    Song,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct Service {
-    list: Vec<Song>,
-    current: usize,
-    preview: Option<Song>,
-    pub status: [Status; 2],
-}
-
-impl Service {
-    pub fn new() -> Self {
-        Service {
-            list: Vec::with_capacity(10),
-            current: 0,
-            preview: None,
-            status: [Status::default(), Status::default()],
-        }
-    }
-
-    pub fn renew(&mut self) {
-        self.list = Vec::with_capacity(10);
-        self.current = 0;
-        self.status[1] = Status::default();
-    }
-
-    pub fn add(&mut self, song: Option<Song>, content: Content) {
-        match content {
-            Content::Preview => self.preview = song,
-            Content::Direct => self.push_maybe(song),
-        }
-    }
-
-    pub fn push_maybe(&mut self, song: Option<Song>) {
-        if let Some(song) = song {
-            self.list.push(song);
-        }
-    }
-
-    pub fn set_current_song(&mut self, index: usize) {
-        if index < self.list.len() {
-            self.current = index;
-        }
-    }
-
-    pub fn current_song_index(&self) -> Option<usize> {
-        if !self.list.is_empty() {
-            Some(self.current)
-        } else {
-            None
-        }
-    }
-
-    pub fn current_song(&self, content: Content) -> Option<&Song> {
-        match content {
-            Content::Direct => {
-                if !self.list.is_empty() {
-                    Some(&self.list[self.current])
-                } else {
-                    None
-                }
-            }
-            Content::Preview => self.preview.as_ref(),
-        }
-    }
-
-    pub fn current_song_mut(&mut self, content: Content) -> Option<&mut Song> {
-        match content {
-            Content::Direct => {
-                if !self.list.is_empty() {
-                    Some(&mut self.list[self.current])
-                } else {
-                    None
-                }
-            }
-            Content::Preview => self.preview.as_mut(),
-        }
-    }
-
-    pub fn change(&mut self, content: Content, f: impl Fn(&mut Song)) -> Task<Message> {
-        if let Some(song) = self.current_song_mut(content) {
-            f(song);
-        }
-        Task::none()
-    }
-
-    pub fn perform(&mut self, saction: SAction) -> Task<Message> {
-        match saction {
-            SAction::New => self.renew(),
-            // OpenLP service files are zip files what contains a service_data.osj file (in json)
-            SAction::Open => todo!(),
-            SAction::Save => todo!(),
-        }
-        Task::none()
-    }
-
-    /*
-    %USERPROFILE%\AppData\Local\RustLP\
-    Compress-Archive file1 file2 archive.zip
-    Expand-Archive archive.zip target
-     */
-}
-
-impl IntoIterator for Service {
-    type IntoIter = std::vec::IntoIter<Song>;
-    type Item = Song;
-    fn into_iter(self) -> Self::IntoIter {
-        self.list.into_iter()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SAction {
-    New,
-    Open,
-    Save,
 }
 
 #[cfg(test)]

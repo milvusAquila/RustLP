@@ -14,6 +14,7 @@ pub fn theme_pick_list(theme: &Theme, status: pick_list::Status) -> pick_list::S
                 palette.background.weak.color
             }
             pick_list::Status::Active => palette.background.base.color,
+            pick_list::Status::Disabled => palette.background.base.color,
         },
         border: iced::Border {
             radius: 2.0.into(),

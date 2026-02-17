@@ -1,52 +1,51 @@
 use iced::{
-    alignment::Vertical,
+    Element, Length, Theme,
     widget::{
-        button, column, container, mouse_area, pick_list, row, rule, scrollable, space, text_input,
-        Column, Container,
+        Column, Container, button, column, container, mouse_area, pick_list, row, rule, scrollable,
+        space, text_input,
     },
-    Alignment, Element, Font, Length, Theme,
 };
 use rusqlite::Result;
 
 use crate::{
-    db::{SAction, Sort, Status},
-    style,
-    widget::{ttext, BOLD},
     App, Message,
+    content::{Content, document::Document, panel::Panels},
+    library::{LibraryPage, Sort},
+    service::Action,
+    style,
+    widget::{icon, ttext},
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Content {
-    Preview = 0,
-    Direct = 1,
-}
-
-fn icon<'a>(codepoint: char) -> Element<'a, Message> {
-    const ICON_FONT: Font = Font::with_name("icons");
-    iced::widget::text(codepoint).font(ICON_FONT).into()
-}
 
 impl App {
     pub fn view_control(&self) -> Element<'_, Message> {
         let index = column![
-            pick_list(Library::ALL, Some(self.library), Message::LibraryChanged)
-                .text_size(self.set.font_size)
-                .style(style::theme_pick_list)
-                .width(Length::FillPortion(18))
-                .padding(self.set.spacing),
+            pick_list(
+                Some(self.library.page),
+                LibraryPage::ALL,
+                LibraryPage::to_string,
+            )
+            .on_select(Message::LibraryPageChanged)
+            .text_size(self.set.font_size)
+            .style(style::theme_pick_list)
+            .width(Length::FillPortion(18))
+            .padding(self.set.spacing),
             space::horizontal().height(5.),
-            match self.library {
-                Library::Songs => self.view_song_index().expect("ERROR: Failed to load index"),
-                Library::Documents => column![],
+            match self.library.page {
+                LibraryPage::Songs => self
+                    .view_song_index()
+                    .expect("ERROR: Failed to load song index"),
+                LibraryPage::Documents => self
+                    .view_document_index()
+                    .expect("ERROR: Failed to load document index"),
             },
         ]
         .spacing(self.set.spacing);
         let preview = self
-            .view_song(Content::Preview)
+            .preview_content(Panels::Preview)
             .height(Length::Fill)
             .width(Length::FillPortion(32));
         let direct = self
-            .view_song(Content::Direct)
+            .preview_content(Panels::Direct)
             .height(Length::Fill)
             .width(Length::FillPortion(32));
         let service = column![
@@ -74,33 +73,35 @@ impl App {
     }
 
     fn view_song_index(&self) -> Result<Column<'_, Message>> {
+        let songs = &self.library.songs;
         let header = column![
-            pick_list(Sort::ALL, Some(self.sort), Message::SortChanged)
+            pick_list(Some(songs.sort), Sort::ALL, Sort::to_string)
+                .on_select(Message::SortChanged)
                 .text_size(self.set.font_size)
                 .style(style::theme_pick_list)
                 .width(Length::FillPortion(18))
                 .padding(self.set.spacing),
-            text_input("Search", &self.search)
+            text_input("Search", &songs.search)
                 .id("search")
                 .on_input(Message::SearchChanged)
                 .on_submit(Message::ExitSearch),
         ]
         .spacing(self.set.spacing);
-        let mut index = Column::with_capacity(self.index.len());
-        for (id, title) in &self.index {
+        let mut index = Column::with_capacity(songs.index.len());
+        for (id, title) in &songs.index {
             index = index.push(
                 mouse_area(
                     button(ttext(title, self))
-                        .style(if *id == self.db_select {
+                        .style(if *id == songs.db_select {
                             button::secondary
                         } else {
                             button::text
                         })
                         .width(Length::Fill)
                         .on_press(Message::SelectSong(*id))
-                        .on_double_click(Message::OpenSong(*id, Content::Preview)),
+                        .on_double_click(Message::OpenSong(*id, Panels::Preview)),
                 )
-                .on_middle_press(Message::OpenSong(*id, Content::Direct)),
+                .on_middle_press(Message::OpenSong(*id, Panels::Direct)),
             );
         }
         Ok(header.push(
@@ -110,70 +111,35 @@ impl App {
         ))
     }
 
-    fn view_song(&self, content: Content) -> Container<'_, Message, Theme> {
-        let Some(song) = &self.service.current_song(content) else {
-            return container(ttext("No song selected", self).width(Length::Fill).center());
-        };
-        let mut lyrics = column![rule::horizontal(1).style(style::soft_rule)];
-        for (index, verse) in song.lyrics.clone().into_iter().enumerate() {
-            lyrics = lyrics
-                .push(
-                    row![
-                        rule::vertical(1).style(style::soft_rule),
-                        // Verse id
-                        ttext(format!("{}", verse.0), self).style(style::soft_text),
-                        rule::vertical(1).style(style::soft_rule),
-                        // Lyrics
-                        button(ttext(verse.1, self))
-                            .on_press(Message::ChangeVerse(content, index))
-                            .width(Length::Fill)
-                            .style(if index == song.current {
-                                button::secondary
-                            } else {
-                                button::text
-                            }),
-                        rule::vertical(1).style(style::soft_rule),
-                    ]
-                    .height(Length::Shrink)
-                    .align_y(Vertical::Center),
-                )
-                .push(rule::horizontal(1).style(style::soft_rule));
+    fn view_document_index(&self) -> Result<Column<'_, Message>> {
+        // TODO
+        Ok(column![])
+    }
+
+    fn preview_content(&self, panels: Panels) -> Container<'_, Message, Theme> {
+        match &self.panels[panels as usize].content {
+            Content::Empty => {
+                container(ttext("No song selected", self).width(Length::Fill).center())
+            }
+            Content::Song(song) => song.preview(self, panels),
+            Content::Document(Document::Pdf(pdf)) => pdf.preview(self),
         }
-        let options = row![
-            button(icon('\u{0e804}')).on_press(Message::ChangeScreen(Status::DarkScreen, content)),
-            button(icon('\u{0e805}')).on_press(Message::ChangeScreen(Status::WhiteScreen, content)),
-            button(icon('\u{0e806}')).on_press(Message::ChangeScreen(Status::Song, content)),
-        ];
-        container(
-            column![
-                ttext(song.title(&self.books), self)
-                    .font(BOLD)
-                    .align_x(Alignment::Center)
-                    .width(Length::Fill),
-                scrollable(lyrics).width(Length::Fill).height(Length::Fill),
-                rule::horizontal(2),
-                options,
-                rule::horizontal(2),
-                self.view_display(content),
-            ]
-            .spacing(self.set.spacing),
-        )
     }
 
     fn view_service(&self) -> Container<'_, Message, Theme> {
         let control = row![
-            button(icon('\u{0e801}')).on_press(Message::ServiceAction(SAction::New)),
-            button(icon('\u{0e802}')).on_press(Message::ServiceAction(SAction::Open)),
-            button(icon('\u{0e803}')).on_press(Message::ServiceAction(SAction::Save)),
+            button(icon('\u{0e801}')).on_press(Message::ServiceAction(Action::New)),
+            button(icon('\u{0e802}')).on_press(Message::ServiceAction(Action::Open)),
+            button(icon('\u{0e803}')).on_press(Message::ServiceAction(Action::Save)),
         ];
         let mut titles = Column::with_capacity(10);
-        let current = self.service.current_song_index().unwrap_or(0);
-        for song in self.service.clone().into_iter().enumerate() {
+        let current = self.service.get_current().unwrap_or(0);
+        for content in self.service.clone().into_iter().enumerate() {
             titles = titles.push(
-                button(ttext(song.1.title(&self.books), self))
-                    .on_double_click(Message::ChangeCurrentSong(song.0))
+                button(ttext(content.1.title(&self.library.songs.books), self))
+                    .on_double_click(Message::ServiceChangeContent(content.0))
                     .width(Length::Fill)
-                    .style(if song.0 == current {
+                    .style(if content.0 == current {
                         style::border_secondary
                     } else {
                         style::border_text
@@ -181,22 +147,5 @@ impl App {
             );
         }
         container(column![control, titles])
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum Library {
-    #[default]
-    Songs = 0,
-    Documents = 1,
-}
-
-impl Library {
-    pub const ALL: [Self; 2] = [Self::Songs, Self::Documents];
-}
-
-impl std::fmt::Display for Library {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
     }
 }
