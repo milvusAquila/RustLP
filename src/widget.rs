@@ -16,6 +16,6 @@ pub const BOLD: Font = Font {
 };
 
 pub fn icon<'a>(codepoint: char) -> Element<'a, Message> {
-    const ICON_FONT: Font = Font::with_name("icons");
+    const ICON_FONT: Font = Font::new("icons");
     iced::widget::text(codepoint).font(ICON_FONT).into()
 }

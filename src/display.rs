@@ -136,6 +136,7 @@ where
                         align_y: Vertical::Bottom,
                         shaping: text::Shaping::default(),
                         wrapping: text::Wrapping::default(),
+                        ellipsis: text::Ellipsis::None,
                         hint_factor: None,
                     },
                     iced::Point {
@@ -155,6 +156,7 @@ where
                     align_y: Vertical::Center,
                     shaping: text::Shaping::default(),
                     wrapping: text::Wrapping::default(),
+                    ellipsis: text::Ellipsis::None,
                     hint_factor: None,
                 };
                 // Stroke

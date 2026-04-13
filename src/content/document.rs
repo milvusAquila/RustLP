@@ -34,14 +34,15 @@ impl Pdf {
             let mut current_path = libdoc.cache_path.clone();
             current_path.push(format!("{}-{}.png", name, index));
             page.render_with_config(&render_config)
-                .expect("ERROR: Can't render pdf into image")
+                .expect("ERROR: Can't render pdf")
                 .as_image()
+                .expect("ERROR: Can't convert pdf into image")
                 .save_with_format(current_path.as_os_str(), ::image::ImageFormat::Png)
                 .expect("ERROR: Can't write image to cache");
         }
         Self {
             path: path,
-            nb_pages,
+            nb_pages: nb_pages as u16,
             name: name,
             current: None,
         }

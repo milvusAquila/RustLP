@@ -4,11 +4,11 @@ use iced::{
 };
 
 pub fn theme_pick_list(theme: &Theme, status: pick_list::Status) -> pick_list::Style {
-    let palette = theme.extended_palette();
+    let palette = theme.palette();
     pick_list::Style {
         background: iced::Background::Color(palette.background.base.color),
         text_color: palette.background.base.text,
-        placeholder_color: theme.palette().success,
+        placeholder_color: theme.palette().success.base.text,
         handle_color: match status {
             pick_list::Status::Hovered | pick_list::Status::Opened { .. } => {
                 palette.background.weak.color
@@ -25,7 +25,7 @@ pub fn theme_pick_list(theme: &Theme, status: pick_list::Status) -> pick_list::S
 }
 
 fn soft(theme: &Theme) -> Color {
-    theme.extended_palette().secondary.base.color
+    theme.palette().secondary.base.color
 }
 
 pub fn border_secondary(theme: &Theme, status: button::Status) -> button::Style {
