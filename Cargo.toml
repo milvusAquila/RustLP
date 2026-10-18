@@ -5,15 +5,15 @@ edition = "2024"
 
 [dependencies]
 # iced = { git = "https://github.com/iced-rs/iced", features = ["image", "advanced"] }
-iced = { path = "../cloned/iced", features = ["image", "canvas", "advanced"] }
-rusqlite = { version = "0.39.0", features = ["collation"] }
-quick-xml = "0.39.2"
+iced = { path = "../cloned/iced", features = ["image", "advanced"] }
+rusqlite = { version = "0.40.2", features = ["collation"] }
+quick-xml = "0.40.1"
 unidecode = "0.3.0"
 confy = "2.0.0"
 etcetera = "0.11.0"
-serde = { version = "1.0.228", features = ["derive"] }
-bytes = "1.11.1"
-pdfium-render = "0.9.0"
+serde = { version = "1.0.229", features = ["derive"] }
+bytes = "1.12.1"
+pdfium-render = "0.9.4"
 image = "0.25.10"
 
 [profile.dev]

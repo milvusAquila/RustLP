@@ -191,9 +191,12 @@ impl Song {
                 .push(rule::horizontal(1).style(style::soft_rule));
         }
         let options = row![
-            button(icon('\u{0e804}')).on_press(Message::ChangeScreenStatus(panels, Status::DarkScreen)),
-            button(icon('\u{0e805}')).on_press(Message::ChangeScreenStatus(panels, Status::WhiteScreen)),
-            button(icon('\u{0e806}')).on_press(Message::ChangeScreenStatus(panels, Status::Content)),
+            button(icon('\u{0e804}'))
+                .on_press(Message::ChangeScreenStatus(panels, Status::DarkScreen)),
+            button(icon('\u{0e805}'))
+                .on_press(Message::ChangeScreenStatus(panels, Status::WhiteScreen)),
+            button(icon('\u{0e806}'))
+                .on_press(Message::ChangeScreenStatus(panels, Status::Content)),
         ];
         container(
             column![

@@ -1,23 +1,23 @@
 use bytes::Bytes;
 use iced::{
-    advanced::{image::Handle, layout, renderer, widget::Tree, Layout, Text, Widget},
+    Background, Color, Element, Font, Length, Size, Theme, Vector,
+    advanced::{Layout, Text, Widget, image::Handle, layout, renderer, widget::Tree},
     alignment::Vertical,
     mouse,
     widget::{container, image, text},
-    Background, Color, Element, Font, Length, Size, Theme, Vector,
 };
 
 use crate::{
+    App, Message,
     content::{
+        Content,
         panel::{Panels, Status},
         song::Song,
-        Content,
     },
     widget::BOLD,
-    App, Message,
 };
 
-const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross.jpg");
+const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross_4_3.jpg");
 
 impl App {
     pub fn view_display(&self, panels: Panels) -> Element<'_, Message> {
