@@ -52,6 +52,7 @@ pub fn border_text(theme: &Theme, status: button::Status) -> button::Style {
 pub fn soft_text(theme: &Theme) -> widget::text::Style {
     widget::text::Style {
         color: Some(soft(theme)),
+        selection: None,
     }
 }
 

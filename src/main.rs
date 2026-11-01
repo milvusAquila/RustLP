@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use etcetera::BaseStrategy;
-use iced::{Element, Size, Task, Theme, widget::container, window};
+use iced::{Size, Task, Theme, Widget, window};
 use pdfium_render::prelude::Pdfium;
 
 use crate::{
@@ -114,7 +114,7 @@ impl App {
                     display: display_id,
                     settings: None,
                 },
-                resolution: Size::new(1920.0, 1080.0), // Tempopary value
+                resolution: Size::new(1920.0, 1080.0), // Temporary value
                 set: settings,
                 library: Library {
                     page: LibraryPage::default(),
@@ -292,18 +292,20 @@ impl App {
         }
     }
 
-    fn view(&self, id: window::Id) -> Element<'_, Message> {
-        let mut screen = if id == self.window.control {
-            self.view_control()
+    fn view(&self, id: window::Id) -> impl iced::Widget<Message> {
+        let screen = if id == self.window.control {
+            self.view_control().boxed()
         } else if Some(id) == self.window.settings {
-            self.view_settings()
+            self.view_settings().boxed()
         } else {
-            self.view_display(Panels::Direct)
+            self.view_display(Panels::Direct).boxed()
         };
+
         if self.set.debug_layout {
-            screen = screen.explain(iced::Color::WHITE);
+            screen.explain(iced::Color::WHITE).boxed()
+        } else {
+            screen.boxed()
         }
-        container(screen).into()
     }
 
     fn theme(&self, id: window::Id) -> Theme {

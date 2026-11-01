@@ -151,20 +151,17 @@ impl Song {
         }
     }
 
-    pub fn preview<'a>(
-        &self,
-        app: &'a crate::App,
-        panels: Panels,
-    ) -> iced::widget::Container<'a, Message, iced::Theme> {
+    pub fn preview<'a>(&self, app: &'a crate::App, panels: Panels) -> impl iced::Widget<Message> {
         use crate::{
             style,
             widget::{BOLD, icon, ttext},
         };
         use iced::{
-            Alignment, Length,
+            Alignment, Length, Widget,
             alignment::Vertical,
-            widget::{button, column, container, row, rule, scrollable},
+            widget::{button, column, row, rule, scrollable},
         };
+        // TODO: correct widget alignment
         let mut lyrics = column![rule::horizontal(1).style(style::soft_rule)];
         for (index, verse) in self.lyrics.clone().into_iter().enumerate() {
             lyrics = lyrics
@@ -186,9 +183,10 @@ impl Song {
                         rule::vertical(1).style(style::soft_rule),
                     ]
                     .height(Length::Shrink)
-                    .align_y(Vertical::Center),
+                    .align_y(Vertical::Center)
+                    .boxed(),
                 )
-                .push(rule::horizontal(1).style(style::soft_rule));
+                .push(rule::horizontal(1).style(style::soft_rule).boxed());
         }
         let options = row![
             button(icon('\u{0e804}'))
@@ -198,20 +196,18 @@ impl Song {
             button(icon('\u{0e806}'))
                 .on_press(Message::ChangeScreenStatus(panels, Status::Content)),
         ];
-        container(
-            column![
-                ttext(self.title(&app.library.songs.books), app)
-                    .font(BOLD)
-                    .align_x(Alignment::Center)
-                    .width(Length::Fill),
-                scrollable(lyrics).width(Length::Fill).height(Length::Fill),
-                rule::horizontal(2),
-                options,
-                rule::horizontal(2),
-                app.view_display(panels),
-            ]
-            .spacing(app.set.spacing),
-        )
+        column![
+            ttext(self.title(&app.library.songs.books), app)
+                .font(BOLD)
+                .align_x(Alignment::Center)
+                .width(Length::Fill),
+            scrollable(lyrics).width(Length::Fill).height(Length::Fill),
+            rule::horizontal(2),
+            options,
+            rule::horizontal(2),
+            app.view_display(panels),
+        ]
+        .spacing(app.set.spacing)
     }
 }
 

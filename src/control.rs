@@ -1,11 +1,10 @@
 use iced::{
-    Element, Length, Theme,
+    Length, Widget,
     widget::{
-        Column, Container, button, column, container, mouse_area, pick_list, row, rule, scrollable,
-        space, text_input,
+        Column, button, column, container, mouse_area, pick_list, row, rule, scrollable, space,
+        text_input,
     },
 };
-use rusqlite::Result;
 
 use crate::{
     App, Message,
@@ -17,7 +16,7 @@ use crate::{
 };
 
 impl App {
-    pub fn view_control(&self) -> Element<'_, Message> {
+    pub fn view_control(&self) -> impl iced::Widget<Message> {
         let index = column![
             pick_list(
                 Some(self.library.page),
@@ -31,21 +30,16 @@ impl App {
             .padding(self.set.spacing),
             space::horizontal().height(5.),
             match self.library.page {
-                LibraryPage::Songs => self
-                    .view_song_index()
-                    .expect("ERROR: Failed to load song index"),
-                LibraryPage::Documents => self
-                    .view_document_index()
-                    .expect("ERROR: Failed to load document index"),
+                LibraryPage::Songs => column![self.view_song_index()],
+                LibraryPage::Documents => column![self.view_document_index()],
             },
         ]
+        .width(Length::FillPortion(18))
         .spacing(self.set.spacing);
-        let preview = self
-            .preview_content(Panels::Preview)
+        let preview = container(self.preview_content(Panels::Preview))
             .height(Length::Fill)
             .width(Length::FillPortion(32));
-        let direct = self
-            .preview_content(Panels::Direct)
+        let direct = container(self.preview_content(Panels::Direct))
             .height(Length::Fill)
             .width(Length::FillPortion(32));
         let service = column![
@@ -69,10 +63,9 @@ impl App {
         ]
         .spacing(self.set.spacing)
         .padding(5)
-        .into()
     }
 
-    fn view_song_index(&self) -> Result<Column<'_, Message>> {
+    fn view_song_index(&self) -> impl iced::Widget<Message> {
         let songs = &self.library.songs;
         let header = column![
             pick_list(Some(songs.sort), Sort::ALL, Sort::to_string)
@@ -98,35 +91,32 @@ impl App {
                             button::text
                         })
                         .width(Length::Fill)
-                        .on_press(Message::SelectSong(*id))
-                        .on_double_click(Message::OpenSong(*id, Panels::Preview)),
+                        .on_press(Message::SelectSong(*id)),
+                    //TODO: .on_double_click(Message::OpenSong(*id, Panels::Preview)),
                 )
                 .on_middle_press(Message::OpenSong(*id, Panels::Direct)),
             );
         }
-        Ok(header.push(
-            scrollable(index)
-                .width(Length::FillPortion(18))
-                .height(Length::Fill),
-        ))
+        header.push(scrollable(index).height(Length::Fill).boxed())
     }
 
-    fn view_document_index(&self) -> Result<Column<'_, Message>> {
+    fn view_document_index(&self) -> impl iced::Widget<Message> {
         // TODO
-        Ok(column![])
+        column!["TODO"]
     }
 
-    fn preview_content(&self, panels: Panels) -> Container<'_, Message, Theme> {
+    fn preview_content(&self, panels: Panels) -> impl iced::Widget<Message> {
         match &self.panels[panels as usize].content {
-            Content::Empty => {
-                container(ttext("No song selected", self).width(Length::Fill).center())
-            }
-            Content::Song(song) => song.preview(self, panels),
-            Content::Document(Document::Pdf(pdf)) => pdf.preview(self),
+            Content::Empty => ttext("No song selected", self)
+                .width(Length::Fill)
+                .center()
+                .boxed(),
+            Content::Song(song) => song.preview(self, panels).boxed(),
+            Content::Document(Document::Pdf(pdf)) => pdf.preview(self).boxed(),
         }
     }
 
-    fn view_service(&self) -> Container<'_, Message, Theme> {
+    fn view_service(&self) -> impl iced::Widget<Message> {
         let control = row![
             button(icon('\u{0e801}')).on_press(Message::ServiceAction(Action::New)),
             button(icon('\u{0e802}')).on_press(Message::ServiceAction(Action::Open)),
@@ -137,7 +127,7 @@ impl App {
         for content in self.service.clone().into_iter().enumerate() {
             titles = titles.push(
                 button(ttext(content.1.title(&self.library.songs.books), self))
-                    .on_double_click(Message::ServiceChangeContent(content.0))
+                    // TODO .on_double_click(Message::ServiceChangeContent(content.0))
                     .width(Length::Fill)
                     .style(if content.0 == current {
                         style::border_secondary
@@ -146,6 +136,6 @@ impl App {
                     }),
             );
         }
-        container(column![control, titles])
+        column![control, titles]
     }
 }

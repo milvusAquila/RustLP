@@ -1,7 +1,4 @@
-use iced::{
-    Element,
-    widget::{column, slider, toggler},
-};
+use iced::widget::{column, slider, toggler};
 use serde::{Deserialize, Serialize};
 
 use crate::{App, Message, widget::ttext};
@@ -26,7 +23,7 @@ impl Default for Settings {
 }
 
 impl App {
-    pub fn view_settings(&self) -> Element<'_, Message> {
+    pub fn view_settings(&self) -> impl iced::Widget<Message> {
         let set = &self.set;
         let theme = toggler(set.dark_theme)
             .label("Dark theme")
@@ -46,14 +43,13 @@ impl App {
             .size(set.font_size)
             .text_size(set.font_size);
 
-        let settings = column![
+        column![
             theme,
             font_size_header,
             font_size_slidder,
             spacing_header,
             spacing_slider,
             debug_layout,
-        ];
-        Element::from(settings)
+        ]
     }
 }

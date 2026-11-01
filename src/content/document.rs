@@ -68,15 +68,15 @@ impl Pdf {
         }
     }
 
-    pub fn preview(&self, app: &crate::App) -> iced::widget::Container<'_, Message, iced::Theme> {
-        use iced::widget::{Column, container, image};
+    pub fn preview(&self, app: &crate::App) -> impl iced::Widget<Message> {
+        use iced::widget::{Column, image};
         let mut col = Column::with_capacity(self.nb_pages as usize);
         for i in 0..self.nb_pages {
             let mut new_path = app.library.docs.cache_path.clone();
             new_path.push(format!("{}-{}.png", self.name, i));
             col = col.push(image(new_path)); //.content_fit(iced::ContentFit::Cover));
         }
-        container(col)
+        col
     }
 }
 

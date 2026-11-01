@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use iced::{
-    Background, Color, Element, Font, Length, Size, Theme, Vector,
+    Background, Color, Length, Size, Theme, Vector,
     advanced::{Layout, Text, Widget, image::Handle, layout, renderer, widget::Tree},
     alignment::Vertical,
     mouse,
@@ -20,8 +20,8 @@ use crate::{
 const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross_4_3.jpg");
 
 impl App {
-    pub fn view_display(&self, panels: Panels) -> Element<'_, Message> {
-        Display::new(self, panels).into()
+    pub fn view_display(&self, panels: Panels) -> impl iced::Widget<Message> {
+        Display::new(self, panels)
     }
 }
 
@@ -53,10 +53,12 @@ impl Display {
     }
 }
 
+impl iced::advanced::widget::Meta for Display {}
+
 impl<Message, Renderer> Widget<Message, Theme, Renderer> for Display
 where
     Renderer: iced::advanced::Renderer
-        + iced::advanced::text::Renderer<Font = Font>
+        + iced::advanced::text::Renderer
         + iced::advanced::image::Renderer<Handle = image::Handle>,
 {
     fn size(&self) -> Size<Length> {
@@ -66,13 +68,8 @@ where
         }
     }
 
-    fn layout(
-        &mut self,
-        _tree: &mut Tree,
-        _renderer: &Renderer,
-        limits: &layout::Limits,
-    ) -> layout::Node {
-        layout::Node::new(iced::ContentFit::Contain.fit(self.resolution, limits.max()))
+    fn layout(&mut self, tree: &mut Tree, _renderer: &Renderer, limits: &layout::Limits) {
+        tree.size = iced::ContentFit::Contain.fit(self.resolution, limits.max);
     }
 
     fn draw(
@@ -81,7 +78,7 @@ where
         renderer: &mut Renderer,
         _theme: &Theme,
         _style: &renderer::Style,
-        layout: Layout<'_>,
+        layout: Layout,
         _cursor: mouse::Cursor,
         viewport: &iced::Rectangle,
     ) {
@@ -184,16 +181,5 @@ where
             //     1.0,
             // );
         }
-    }
-}
-
-impl<'a, Message, Renderer> From<Display> for iced::Element<'a, Message, Theme, Renderer>
-where
-    Renderer: iced::advanced::Renderer
-        + iced::advanced::text::Renderer<Font = Font>
-        + iced::advanced::image::Renderer<Handle = image::Handle>,
-{
-    fn from(widget: Display) -> Self {
-        Self::new(widget)
     }
 }
