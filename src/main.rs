@@ -114,7 +114,7 @@ impl App {
                     display: display_id,
                     settings: None,
                 },
-                resolution: Size::new(1920.0, 1080.0), // Temporary value
+                resolution: Size::new(0.0, 0.0), // Changed on window's creation
                 set: settings,
                 library: Library {
                     page: LibraryPage::default(),

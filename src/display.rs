@@ -17,7 +17,8 @@ use crate::{
     widget::BOLD,
 };
 
-const DEFAULT_IMAGE: &[u8] = include_bytes!("../cross_4_3.jpg");
+const DEFAULT43_IMAGE: &[u8] = include_bytes!("../cross_4_3.jpg");
+const DEFAULT169_IMAGE: &[u8] = include_bytes!("../cross_16_9.jpg");
 
 impl App {
     pub fn view_display(&self, panels: Panels) -> impl iced::Widget<Message> {
@@ -42,13 +43,21 @@ impl Display {
         };
         let title = song.title(&app.library.songs.books);
         let lyrics = song.get(song.current);
+        let res = app.resolution;
+        let img = Handle::from_bytes(Bytes::from_static(
+                if res.width as u32 * 9 == res.height as u32 * 16 {
+                    DEFAULT169_IMAGE
+                } else {
+                    DEFAULT43_IMAGE
+                }
+        ));
         Self {
             resolution: app.resolution,
             status: app.panels[panels as usize].get_status(),
             title: title,
             lyrics: lyrics,
             font_size: 40.0,
-            image: Handle::from_bytes(Bytes::from_static(DEFAULT_IMAGE)),
+            image: img,
         }
     }
 }
