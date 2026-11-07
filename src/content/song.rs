@@ -1,4 +1,4 @@
-use quick_xml::{Reader, events::Event};
+use quick_xml::{Reader, XmlVersion, events::Event};
 use rusqlite::Row;
 use std::fmt::Display;
 
@@ -22,6 +22,7 @@ impl Song {
         let mut lyrics = vec![];
         let (mut verse, mut nb, mut txt) = (VerseType::Other, 0, String::new());
         let mut reader = Reader::from_reader(string.as_bytes());
+        let decoder = reader.decoder();
         reader.config_mut().trim_text(true);
         loop {
             match reader.read_event() {
@@ -33,24 +34,18 @@ impl Song {
                 Ok(Event::Eof) => break,
                 Ok(Event::Start(element)) if element.name().as_ref() == b"verse" => {
                     for attr_result in element.attributes() {
-                        let decoder = reader.decoder();
-                        let a = attr_result.unwrap();
-                        match decoder
-                            .decode(a.key.local_name().as_ref())?
-                            .to_string()
-                            .as_str()
-                        {
+                        let a = attr_result?;
+                        match decoder.decode(a.key.local_name().as_ref())?.as_ref() {
                             "type" => {
                                 verse = a
-                                    .decode_and_unescape_value(decoder)?
-                                    .to_string()
-                                    .as_str()
+                                    .normalized_value(XmlVersion::default())?
+                                    .as_ref()
                                     .try_into()
-                                    .unwrap();
+                                    .unwrap_or_default();
                             }
                             "label" => {
                                 nb = a
-                                    .decode_and_unescape_value(decoder)?
+                                    .normalized_value(XmlVersion::default())?
                                     .parse::<u8>()
                                     .expect("ERROR: Non valid number")
                             }
@@ -263,7 +258,7 @@ impl Display for Verse {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum VerseType {
     Intro,
     Verse,
@@ -271,6 +266,7 @@ pub enum VerseType {
     Chorus,
     Bridge,
     End,
+    #[default]
     Other,
 }
 
